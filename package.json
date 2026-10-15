@@ -1,0 +1,17 @@
+{
+  "name": "ai-call-assistant-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI 电话助手原型：Twilio 转移来电 → Vapi 语音助理 → Supabase 通话卡片",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "twilio": "^5.3.0"
+  }
+}

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>来电记录</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e4e2dc;
+    --accent: #2f5d50; --danger: #b3261e; --warn: #9a6200; --ok: #2f6f3e; --chip: #efede7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161614; --card: #1f1f1c; --ink: #ecebe6; --muted: #a09e97; --line: #33322e;
+      --accent: #7fb8a6; --danger: #f2a39c; --warn: #e8c26e; --ok: #8fcf9c; --chip: #2a2a26;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 8px; }
+  button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button:disabled { opacity: .5; cursor: default; }
+  input { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); width: 100%; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 12px 0; }
+  .panel h2 { font-size: 15px; margin: 0 0 8px; }
+  .log { white-space: pre-wrap; font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 10px 0; }
+  .card.scam { border-left: 4px solid var(--danger); }
+  .card.sales { border-left: 4px solid var(--warn); }
+  .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .who { font-weight: 600; font-size: 16px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--muted); }
+  .chip.danger { color: var(--danger); } .chip.warn { color: var(--warn); } .chip.ok { color: var(--ok); }
+  .summary { margin: 6px 0; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0 0; font-size: 14px; }
+  dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
+  details { margin-top: 8px; } summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  pre { white-space: pre-wrap; font: 13px/1.5 ui-monospace, Menlo, monospace; background: var(--chip);
+    padding: 10px; border-radius: 8px; margin: 6px 0 0; }
+  .actions { margin-top: 10px; display: flex; gap: 8px; }
+  .empty { text-align: center; color: var(--muted); padding: 32px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>来电记录</h1>
+    <span class="muted" id="updated"></span>
+  </header>
+
+  <section class="panel" id="login" hidden>
+    <h2>输入面板口令</h2>
+    <p class="muted">即 Vercel 环境变量里的 DASHBOARD_TOKEN，只保存在这台设备的浏览器里。</p>
+    <input id="token" type="password" autocomplete="off">
+    <div class="bar"><button class="primary" id="save">进入</button></div>
+  </section>
+
+  <div id="app" hidden>
+    <div class="bar">
+      <button id="refresh">刷新</button>
+      <button id="setup">同步配置到 Vapi</button>
+      <button id="test">测试呼叫转移</button>
+      <button id="logout">退出</button>
+    </div>
+    <section class="panel" id="status" hidden>
+      <h2 id="status-title"></h2>
+      <p class="log" id="status-log"></p>
+    </section>
+    <section class="panel" id="tests" hidden>
+      <h2>最近的呼叫转移测试</h2>
+      <div id="tests-list"></div>
+    </section>
+    <div id="calls"></div>
+  </div>
+</main>
+
+<script>
+const CATEGORY = {
+  scam: ['疑似诈骗', 'danger'], telemarketing: ['推销', 'warn'], robocall: ['机器人外呼', 'warn'],
+  business: ['正常事务', 'ok'], personal: ['私人来电', 'ok'], unknown: ['未分类', ''],
+};
+const ACTION = { call_back: '建议回电', ignore: '可以忽略', block: '建议拉黑' };
+const URGENCY = { high: '紧急', medium: '一般', low: '不急' };
+const MATCH = { call_sid: '', caller_time: '按号码与时间匹配', unmatched: '未能匹配到来电' };
+
+let token = '';
+try { token = localStorage.getItem('dashToken') || ''; } catch (e) {}
+
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') node.className = v; else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) if (c !== null && c !== undefined && c !== '') {
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(options.headers || {}) },
+  });
+  if (res.status === 401) { showLogin(); throw new Error('口令不正确'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && !data.steps) throw new Error(data.error || ('请求失败 ' + res.status));
+  return data;
+}
+
+function showLogin() { $('login').hidden = false; $('app').hidden = true; }
+function showApp() { $('login').hidden = true; $('app').hidden = false; load(); }
+function status(title, text) { $('status').hidden = false; $('status-title').textContent = title; $('status-log').textContent = text || ''; }
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function card(call) {
+  const s = call.structured || {};
+  const [catLabel, catTone] = CATEGORY[s.category] || CATEGORY.unknown;
+  const kind = s.category === 'scam' || (s.scam_risk || 0) >= 70 ? 'scam'
+    : (s.category === 'telemarketing' || s.category === 'robocall') ? 'sales' : '';
+  const who = [s.caller_name, s.organization].filter(Boolean).join(' · ') || call.from_number || '未知来电';
+  const chips = [
+    el('span', { class: 'chip ' + catTone }, catLabel),
+    typeof s.scam_risk === 'number' ? el('span', { class: 'chip ' + (s.scam_risk >= 70 ? 'danger' : s.scam_risk >= 40 ? 'warn' : '') }, '诈骗风险 ' + s.scam_risk) : null,
+    s.urgency ? el('span', { class: 'chip' }, URGENCY[s.urgency] || s.urgency) : null,
+    s.recommended_action ? el('span', { class: 'chip' }, ACTION[s.recommended_action] || s.recommended_action) : null,
+    call.status === 'blocked' ? el('span', { class: 'chip danger' }, '黑名单已拒接') : null,
+    call.status === 'answering' ? el('span', { class: 'chip' }, '通话中或报告未到') : null,
+    call.attributed ? null : el('span', { class: 'chip warn' }, '无转移来源'),
+    MATCH[call.match_method] ? el('span', { class: 'chip warn' }, MATCH[call.match_method]) : null,
+  ];
+  const rows = [
+    ['来电号码', call.from_number], ['来意', s.purpose], ['回电号码', s.callback_number],
+    ['时间要求', s.deadline], ['判定理由', (s.scam_reasons || []).join('；')],
+    ['时长', call.duration_seconds ? Math.round(call.duration_seconds) + ' 秒' : ''],
+    ['转移来源', call.forwarded_from || '（运营商未提供）'],
+  ].filter(([, v]) => v);
+
+  const actions = el('div', { class: 'actions' });
+  if (call.from_number && call.from_number.startsWith('+')) {
+    actions.append(el('a', { href: 'tel:' + call.from_number }, el('button', {}, '回电')));
+    actions.append(el('button', { onclick: () => block(call.from_number) }, '拉黑'));
+  }
+
+  return el('article', { class: 'card ' + kind },
+    el('div', { class: 'top' }, el('span', { class: 'who' }, who), el('span', { class: 'muted' }, fmtTime(call.created_at))),
+    el('div', { class: 'chips' }, chips),
+    el('p', { class: 'summary' }, s.summary_zh || call.summary || ''),
+    el('dl', {}, rows.map(([k, v]) => [el('dt', {}, k), el('dd', {}, v)])),
+    call.transcript ? el('details', {}, el('summary', {}, '查看完整转写'), el('pre', {}, call.transcript)) : null,
+    actions,
+  );
+}
+
+async function load() {
+  try {
+    const data = await api('/api/calls');
+    const list = $('calls');
+    list.replaceChildren(...(data.calls.length ? data.calls.map(card) : [el('p', { class: 'empty' }, '还没有来电记录')]));
+    $('tests').hidden = !data.forwardTests.length;
+    $('tests-list').replaceChildren(...data.forwardTests.map((t) => el('p', { class: 'muted' },
+      fmtTime(t.created_at) + '：', t.forwarded_from
+        ? (t.matched_owner ? '成功，运营商带了转移来源 ' + t.forwarded_from + '（可共用号码）' : '收到转移来源 ' + t.forwarded_from + '，但与机主号码不符')
+        : '电话已转回，但运营商没有带转移来源（需要独立号码）')));
+    $('updated').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
+  } catch (e) { status('读取失败', e.message); }
+}
+
+async function block(number) {
+  if (!confirm('拉黑 ' + number + '？之后这个号码打来会直接被拒接。')) return;
+  try { await api('/api/admin/blocklist', { method: 'POST', body: JSON.stringify({ number, reason: 'manual' }) }); load(); }
+  catch (e) { status('拉黑失败', e.message); }
+}
+
+$('save').onclick = () => {
+  token = $('token').value.trim();
+  try { localStorage.setItem('dashToken', token); } catch (e) {}
+  showApp();
+};
+$('logout').onclick = () => { try { localStorage.removeItem('dashToken'); } catch (e) {} token = ''; showLogin(); };
+$('refresh').onclick = load;
+$('setup').onclick = async () => {
+  $('setup').disabled = true; status('正在同步配置…');
+  try {
+    const r = await api('/api/admin/setup', { method: 'POST' });
+    status(r.ok ? '配置已同步' : '同步失败', [...(r.steps || []), r.error || ''].join('\n'));
+  } catch (e) { status('同步失败', e.message); }
+  $('setup').disabled = false;
+};
+$('test').onclick = async () => {
+  if (!confirm('将用 Twilio 号码拨打你的手机。来电时请直接按「拒接」，约半分钟后刷新查看结果。')) return;
+  try { await api('/api/admin/check-forwarding', { method: 'POST' }); status('测试电话已拨出', '手机响起后请按拒接，然后点「刷新」。'); }
+  catch (e) { status('测试失败', e.message); }
+};
+
+if (token) showApp(); else showLogin();
+setInterval(() => { if (token && !document.hidden) load(); }, 15000);
+</script>
+</body>
+</html>
