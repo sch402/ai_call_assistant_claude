@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     const config = assistantConfig({
       persona: env('ASSISTANT_NAME', 'Michael'),
       voice: env('ASSISTANT_VOICE', 'male-mature'),
-      recordingNotice: env('RECORDING_NOTICE', 'true') !== 'false',
+      recordingNotice: env('RECORDING_NOTICE', 'false') === 'true',
       serverUrl: `${baseUrl()}/api/vapi-webhook`,
       webhookSecret: env('VAPI_WEBHOOK_SECRET'),
       maxCallSeconds: Number(env('MAX_CALL_SECONDS', '300')),
