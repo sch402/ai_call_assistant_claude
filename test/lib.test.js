@@ -5,6 +5,7 @@ import { dialVapi, reject, sayAndHangup, xmlEscape } from '../lib/twiml.js';
 import { findCallSids, pickByCallerAndTime } from '../lib/match.js';
 import { timingSafeEqualString } from '../lib/http.js';
 import { assistantConfig, firstMessage } from '../lib/assistant.js';
+import { normalizeBaseUrl } from '../lib/env.js';
 
 test('phone numbers in different formats compare equal', () => {
   assert.equal(digits('sip:+61412345678@sip.vapi.ai'), '61412345678');
@@ -59,6 +60,12 @@ test('fallback match picks the latest unmatched call from the same caller in the
     reportStartedAt: now.toISOString(),
   });
   assert.equal(none, null);
+});
+
+test('base URL gets https:// and loses trailing slashes', () => {
+  assert.equal(normalizeBaseUrl('aicallassistantclaude.vercel.app'), 'https://aicallassistantclaude.vercel.app');
+  assert.equal(normalizeBaseUrl(' https://a.vercel.app/ '), 'https://a.vercel.app');
+  assert.equal(normalizeBaseUrl('http://a.vercel.app'), 'https://a.vercel.app');
 });
 
 test('token comparison', () => {
