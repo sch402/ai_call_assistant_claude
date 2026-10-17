@@ -23,7 +23,8 @@ export default async function handler(req, res) {
   try {
     // 1. 助理
     const config = assistantConfig({
-      persona: env('ASSISTANT_NAME', 'Amy'),
+      persona: env('ASSISTANT_NAME', 'Michael'),
+      voice: env('ASSISTANT_VOICE', 'male-mature'),
       recordingNotice: env('RECORDING_NOTICE', 'true') !== 'false',
       serverUrl: `${baseUrl()}/api/vapi-webhook`,
       webhookSecret: env('VAPI_WEBHOOK_SECRET'),

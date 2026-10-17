@@ -4,7 +4,7 @@ import { digits, samePhone } from '../lib/phone.js';
 import { dialVapi, reject, sayAndHangup, xmlEscape } from '../lib/twiml.js';
 import { findCallSids, pickByCallerAndTime } from '../lib/match.js';
 import { timingSafeEqualString } from '../lib/http.js';
-import { assistantConfig, firstMessage } from '../lib/assistant.js';
+import { assistantConfig, firstMessage, voiceFor } from '../lib/assistant.js';
 import { normalizeBaseUrl, normalizeSupabaseUrl } from '../lib/env.js';
 
 test('phone numbers in different formats compare equal', () => {
@@ -82,7 +82,8 @@ test('token comparison', () => {
 
 test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   const cfg = assistantConfig({
-    persona: 'Amy',
+    persona: 'Michael',
+    voice: 'male-mature',
     recordingNotice: true,
     serverUrl: 'https://x.test/api/vapi-webhook',
     webhookSecret: 's',
@@ -96,6 +97,11 @@ test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   const prompt = cfg.model.messages[0].content;
   assert.match(prompt, /Mandarin/);
   assert.match(prompt, /never guess, confirm or deny/);
-  assert.match(firstMessage({ persona: 'Amy', recordingNotice: true }), /transcribed/);
-  assert.doesNotMatch(firstMessage({ persona: 'Amy', recordingNotice: false }), /transcribed/);
+  assert.equal(cfg.voice.voiceId, 'cedar');
+  assert.match(prompt, /Never claim to be human/);
+  assert.match(firstMessage({ recordingNotice: true }), /may be recorded/);
+  assert.doesNotMatch(firstMessage({ recordingNotice: false }), /recorded/);
+  assert.doesNotMatch(firstMessage({ recordingNotice: false }), /Michael|assistant/i);
+  assert.equal(voiceFor('female-warm'), 'marin');
+  assert.equal(voiceFor('nonsense'), 'cedar');
 });
