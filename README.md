@@ -110,7 +110,7 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 
 - 只支持一个机主（`OWNER_PHONE_NUMBER`），多用户和号码池留到 MVP 阶段。
 - Vapi 的服务器在美国，澳洲来电每轮对话会多一段跨太平洋往返。原型阶段先实测延迟。
-- 开场白固定用英文（"Hello, who's calling please?"）；对方说中文后 AI 会切换。音色和名字见 `.env.example` 的 ASSISTANT_VOICE、ASSISTANT_NAME。
+- 开场白固定用英文（"Hello, Michael speaking. Who's calling please?"，名字取自 ASSISTANT_NAME）；对方说中文后 AI 会切换。音色和名字见 `.env.example` 的 ASSISTANT_VOICE、ASSISTANT_NAME。
 - 默认不保存录音，只保存转写；开场默认不做通话记录告知（`RECORDING_NOTICE=true` 可开启）。如果以后面向其他用户推出，需要请律师重新评估。
 - Vapi 回传的报告里如果没有带回 Twilio 的 CallSid，会退而按「来电号码 + 时间」匹配，面板上会标出来。
 

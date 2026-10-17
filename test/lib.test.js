@@ -101,7 +101,9 @@ test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   assert.match(prompt, /Never claim to be human/);
   assert.match(firstMessage({ recordingNotice: true }), /may be recorded/);
   assert.doesNotMatch(firstMessage({ recordingNotice: false }), /recorded/);
-  assert.doesNotMatch(firstMessage({ recordingNotice: false }), /Michael|assistant/i);
+  assert.equal(firstMessage({ persona: 'Michael', recordingNotice: false }), "Hello, Michael speaking. Who's calling please?");
+  assert.doesNotMatch(firstMessage({ persona: 'Michael', recordingNotice: false }), /assistant/i);
+  assert.equal(firstMessage({ recordingNotice: false }), "Hello. Who's calling please?");
   assert.equal(voiceFor('female-warm'), 'marin');
   assert.equal(voiceFor('nonsense'), 'cedar');
 });
