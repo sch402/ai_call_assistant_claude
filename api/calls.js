@@ -36,7 +36,10 @@ export default async function handler(req, res) {
   ]);
   const error = calls.error || tests.error || blocked.error;
   if (error) {
-    sendJson(res, 500, { error: error.message });
+    const hint = /invalid path/i.test(error.message || '')
+      ? '（请检查 Vercel 里的 SUPABASE_URL：只填 https://xxxx.supabase.co，不要带 /rest/v1 等路径）'
+      : '';
+    sendJson(res, 500, { error: (error.message || 'database error') + hint });
     return;
   }
   sendJson(res, 200, { calls: calls.data, forwardTests: tests.data, blocklist: blocked.data });

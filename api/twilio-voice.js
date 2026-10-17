@@ -1,7 +1,7 @@
 // Twilio 号码的「来电」webhook。
 // 流程：校验请求确实来自 Twilio → 记录转移来源等信息 → 黑名单直接拒接 → 其余桥接给 Vapi 语音助理。
 import twilio from 'twilio';
-import { db } from '../lib/db.js';
+import { db, logDbError } from '../lib/db.js';
 import { env, baseUrl, sipUri } from '../lib/env.js';
 import { bodyOf, sendXml } from '../lib/http.js';
 import { samePhone } from '../lib/phone.js';
@@ -31,12 +31,15 @@ export default async function handler(req, res) {
 
   // 呼叫转移测试：我们自己的号码打给机主，机主不接，电话又被转回来。
   if (samePhone(from, ourNumber)) {
-    await db().from('forward_tests').insert({
-      call_sid: callSid,
-      forwarded_from: forwardedFrom,
-      matched_owner: samePhone(forwardedFrom, owner),
-      raw_params: params,
-    });
+    logDbError(
+      'forward_tests.insert',
+      await db().from('forward_tests').insert({
+        call_sid: callSid,
+        forwarded_from: forwardedFrom,
+        matched_owner: samePhone(forwardedFrom, owner),
+        raw_params: params,
+      })
+    );
     sendXml(res, sayAndHangup('Forwarding test received. Goodbye.'));
     return;
   }
@@ -44,13 +47,12 @@ export default async function handler(req, res) {
   // 这通电话能否确认属于机主：只认运营商带来的转移来源，绝不猜。
   const attributed = samePhone(forwardedFrom, owner);
 
-  const { data: blocked } = await db()
-    .from('blocklist')
-    .select('number')
-    .eq('number', from)
-    .maybeSingle();
+  // 数据库出错时只记日志，电话照常交给 AI 接听，不能因为记录失败而漏接。
+  const blockResult = await db().from('blocklist').select('number').eq('number', from).maybeSingle();
+  logDbError('blocklist.select', blockResult);
+  const blocked = blockResult.data;
 
-  await db().from('calls').upsert(
+  const saved = await db().from('calls').upsert(
     {
       call_sid: callSid,
       from_number: from,
@@ -64,6 +66,7 @@ export default async function handler(req, res) {
     },
     { onConflict: 'call_sid' }
   );
+  logDbError('calls.upsert', saved);
 
   if (blocked) {
     sendXml(res, reject());
