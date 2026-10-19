@@ -8,10 +8,12 @@ SwiftUI 原型，iOS 17+，只支持 iPhone、竖屏。界面暂时只有中文�
 
 | 页面 | 作用 |
 | --- | --- |
-| 连接 | 首次打开时填写服务地址（Vercel 网址）和访问口令（`DASHBOARD_TOKEN`），校验通过后口令存进钥匙串 |
+| 登录 | 手机号 + 短信验证码（Supabase Auth，短信由 Twilio Verify 发送）。原型阶段还要填服务地址（Vercel 网址）。登录凭证存进钥匙串，访问令牌过期前自动刷新 |
 | 来电 | AI 接听过的电话列表，可筛选「全部 / 需回电 / 骚扰诈骗」；下拉刷新；详情页有中文摘要、来意、诈骗风险、完整转写，可回电、复制号码、拉黑 |
 | 代接设置 | 一键开启或关闭代接，分项设置与查询；iPhone 设置检查清单 |
-| 我的 | 账户信息、会员入口（即将推出）、隐私说明、断开连接 |
+| 我的 | 手机号、代接号码、会员入口（即将推出）、隐私说明、退出登录 |
+
+**为什么要手动输入手机号**：iOS 不允许 App 读取本机号码（没有公开接口，用私有接口会被拒审）。号码框设置成 `.telephoneNumber`，键盘会建议「通讯录 › 我的名片」里的号码，点一下即可填入；验证码框是 `.oneTimeCode`，短信到达后键盘上方会出现验证码，点一下填入后自动登录。国内格式（`0412 345 678`）按澳洲号码补全成 `+61…`，其他国家的号码需要带 `+` 和国家码。
 
 **为什么不能一键拨打转移代码**：iOS 规定，App 打开的电话号码里只要含 `*` 或 `#`，电话 App 就不会拨出。所以 App 的做法是自动复制代码，并提示你到「电话 › 拨号键盘」长按粘贴后拨出。
 
@@ -34,11 +36,16 @@ open CallAssistant.xcodeproj
 
 ## 后端要求
 
-App 用到这几个接口，都需要 `Authorization: Bearer <DASHBOARD_TOKEN>`：
+- `GET /api/auth-config`：Supabase 项目地址和 anon key，不需要登录
+- 登录本身直接调用 Supabase Auth：`POST /auth/v1/otp` 发验证码，`POST /auth/v1/verify` 校验，`POST /auth/v1/token?grant_type=refresh_token` 刷新
 
-- `GET /api/app-config`：代接号码和机主名字
-- `GET /api/calls`：来电记录
-- `POST /api/admin/blocklist`：拉黑号码
+下面几个接口需要 `Authorization: Bearer <Supabase 访问令牌>`，后端用它确认用户和手机号：
+
+- `GET /api/app-config`：代接号码、机主名字、登录手机号
+- `GET /api/calls`：归属给当前用户的来电记录
+- `POST /api/admin/blocklist`：拉黑号码（原型阶段只有机主可以）
+
+后端要先在 Vercel 加上 `SUPABASE_ANON_KEY`，在 Supabase 重新运行一次 `supabase/schema.sql`，并开启手机号登录（见根目录 README 的部署步骤 1）。
 
 ## 目录
 
@@ -48,12 +55,12 @@ ios/
 ├── CallAssistant/
 │   ├── App/                     入口与标签页
 │   ├── Features/
-│   │   ├── Setup/               连接服务
+│   │   ├── Setup/               手机号登录
 │   │   ├── Calls/               来电列表与详情
 │   │   ├── Forwarding/          呼叫转移代码
 │   │   └── Settings/            我的
 │   ├── Models/                  来电数据、转移代码
-│   ├── Services/                网络请求、会话、钥匙串
+│   ├── Services/                网络请求、Supabase 登录、会话、钥匙串
 │   └── Resources/Assets.xcassets  图标、开屏 Logo、主题色
 ├── CallAssistantTests/          单元测试
 └── docs/                        图标预览与生成脚本
@@ -70,5 +77,5 @@ ios/
 
 - **英文**：界面文字已用 SwiftUI 的本地化写法（`Text("…")`）。在 Xcode 里新建 String Catalog（Localizable.xcstrings），构建一次会自动收集所有中文文案，补上英文翻译即可。
 - **会员（应用内购买）**：「我的 › 来电助手 Pro」是预留入口。正式版用 StoreKit 2 实现订阅，服务端按订阅状态限制每月 AI 通话时长。
-- **正式登录**：用 Sign in with Apple 替换访问口令，每位用户有自己的号码和来电记录。
+- **号码池**：给运营商不带转移来源的用户分配独立的 Twilio 号码。
 - **来电推送**：通话结束后通过 APNs 推送摘要，诈骗电话标红。

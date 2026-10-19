@@ -12,23 +12,25 @@ struct CallAssistantApp: App {
     }
 }
 
-/// 未连接服务时显示连接页，连接后进入主界面。
+/// 未登录时显示登录页，登录后进入主界面。
 struct RootView: View {
     @Environment(AppSession.self) private var session
 
     var body: some View {
         Group {
-            if session.isConnected {
+            if session.isSignedIn {
                 MainTabView()
             } else {
-                ConnectView()
+                LoginView()
             }
         }
-        .animation(.default, value: session.isConnected)
+        .animation(.default, value: session.isSignedIn)
     }
 }
 
 struct MainTabView: View {
+    @Environment(AppSession.self) private var session
+
     var body: some View {
         TabView {
             CallListView()
@@ -38,5 +40,6 @@ struct MainTabView: View {
             SettingsView()
                 .tabItem { Label("我的", systemImage: "person.crop.circle") }
         }
+        .task { await session.refreshConfig() }
     }
 }

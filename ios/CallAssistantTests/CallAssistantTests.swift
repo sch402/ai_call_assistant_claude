@@ -77,3 +77,48 @@ final class FormattingTests: XCTestCase {
         XCTAssertNil(AppSession.normalizedServerURL("  "))
     }
 }
+
+final class LoginTests: XCTestCase {
+    func testPhoneNumbersAreNormalisedToE164() {
+        // 澳洲国内格式、键盘自动填入的格式、省略 0 的格式
+        XCTAssertEqual(PhoneNumber.e164("0412 345 678"), "+61412345678")
+        XCTAssertEqual(PhoneNumber.e164("+61 412 345 678"), "+61412345678")
+        XCTAssertEqual(PhoneNumber.e164("(04) 1234-5678"), "+61412345678")
+        XCTAssertEqual(PhoneNumber.e164("412345678"), "+61412345678")
+        XCTAssertEqual(PhoneNumber.e164("61412345678"), "+61412345678")
+        XCTAssertEqual(PhoneNumber.e164("0061412345678"), "+61412345678")
+        // 其他国家必须带 +
+        XCTAssertEqual(PhoneNumber.e164("+86 138 0013 8000"), "+8613800138000")
+        XCTAssertEqual(PhoneNumber.e164("+64 21 123 4567"), "+64211234567")
+        // Supabase 返回的号码不带 +
+        XCTAssertEqual(PhoneNumber.e164("8613800138000", allowBareInternational: true), "+8613800138000")
+        // 无效
+        XCTAssertNil(PhoneNumber.e164(""))
+        XCTAssertNil(PhoneNumber.e164("041234"))
+        XCTAssertNil(PhoneNumber.e164("+61 412 345"))
+        XCTAssertNil(PhoneNumber.e164("13800138000"))
+    }
+
+    func testTokenResponseDecoding() throws {
+        let json = """
+        {"access_token":"a.b.c","token_type":"bearer","expires_in":3600,"expires_at":1792300000,
+         "refresh_token":"r1","user":{"id":"u-1","phone":"61412345678","phone_confirmed_at":"2026-10-19T03:59:50Z"}}
+        """
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let tokens = try SupabaseAuth.decodeTokens(Data(json.utf8), now: now)
+        XCTAssertEqual(tokens.phone, "+61412345678")
+        XCTAssertEqual(tokens.userID, "u-1")
+        XCTAssertEqual(tokens.expiresAt, now.addingTimeInterval(3600))
+        XCTAssertFalse(tokens.isExpired(now: now))
+        XCTAssertTrue(tokens.isExpired(now: now.addingTimeInterval(3550)))
+    }
+
+    func testAuthErrorsAreMapped() {
+        func map(_ status: Int, _ json: String) -> AuthError { SupabaseAuth.error(status: status, data: Data(json.utf8)) }
+        XCTAssertEqual(map(403, #"{"code":403,"error_code":"otp_expired","msg":"Token has expired or is invalid"}"#), .invalidCode)
+        XCTAssertEqual(map(429, #"{"code":429,"error_code":"over_sms_send_rate_limit","msg":"..."}"#), .rateLimited)
+        XCTAssertEqual(map(400, #"{"error":"invalid_grant","error_description":"Invalid Refresh Token"}"#), .sessionExpired)
+        XCTAssertEqual(map(400, #"{"code":400,"error_code":"phone_provider_disabled","msg":"Unsupported phone provider"}"#), .server("Unsupported phone provider"))
+        XCTAssertEqual(map(500, "not json"), .server("HTTP 500"))
+    }
+}

@@ -1,62 +1,127 @@
 import Foundation
 import Observation
 
-/// 保存「连到哪个服务、用什么口令」，以及服务端返回的基础配置。
-/// 原型阶段：口令就是后端的 DASHBOARD_TOKEN；以后换成正式的账号登录。
+/// 保存「连到哪个服务、谁登录了」，以及服务端返回的基础配置。
+/// 登录方式：手机号 + 短信验证码（Supabase Auth）。登录的手机号就是被转移来电的那个号码。
 @MainActor
 @Observable
 final class AppSession {
     private(set) var serverURL: URL?
+    private(set) var authConfig: AuthConfig?
     private(set) var config: AppConfig?
-    var isConnected: Bool { serverURL != nil && token != nil }
+    var isSignedIn: Bool { serverURL != nil && authConfig != nil && tokens != nil }
+    var phone: String? { tokens?.phone }
 
-    private var token: String?
+    private var tokens: AuthTokens?
+    @ObservationIgnored private var refreshTask: Task<AuthTokens, Error>?
     private let defaults: UserDefaults
     private let keychain: KeychainStore
 
     private static let serverKey = "serverURL"
-    private static let tokenAccount = "dashboardToken"
+    private static let authConfigKey = "authConfig"
+    private static let tokensAccount = "authTokens"
+    /// 旧版本用访问口令连接，升级后清掉
+    private static let legacyTokenAccount = "dashboardToken"
 
     init(defaults: UserDefaults = .standard, keychain: KeychainStore = KeychainStore()) {
         self.defaults = defaults
         self.keychain = keychain
-        if let saved = defaults.string(forKey: Self.serverKey), let url = URL(string: saved),
-           let savedToken = keychain.read(account: Self.tokenAccount) {
-            serverURL = url
-            token = savedToken
+        keychain.delete(account: Self.legacyTokenAccount)
+        if let saved = defaults.string(forKey: Self.serverKey) {
+            serverURL = URL(string: saved)
+        }
+        if let data = defaults.data(forKey: Self.authConfigKey) {
+            authConfig = try? JSONDecoder().decode(AuthConfig.self, from: data)
+        }
+        if let json = keychain.read(account: Self.tokensAccount) {
+            tokens = try? JSONDecoder().decode(AuthTokens.self, from: Data(json.utf8))
         }
     }
 
+    /// 登录页预填上次用过的服务地址
+    var savedServerText: String { serverURL?.host() ?? "" }
+
     var client: APIClient? {
-        guard let serverURL, let token else { return nil }
-        return APIClient(baseURL: serverURL, token: token)
+        guard let serverURL, isSignedIn else { return nil }
+        return APIClient(baseURL: serverURL) { [weak self] in
+            guard let self else { throw APIError.unauthorized }
+            return try await self.validAccessToken()
+        }
     }
 
-    /// 校验地址和口令（调用 /api/app-config），成功后才保存。
-    func connect(serverText: String, token newToken: String) async throws {
+    // MARK: - 登录
+
+    /// 第一步：确认服务地址可用（取 /api/auth-config），再让 Supabase 发验证码。返回整理后的 E.164 号码。
+    func sendCode(serverText: String, phoneText: String) async throws -> String {
         guard let url = Self.normalizedServerURL(serverText) else { throw APIError.invalidServerURL }
-        let trimmedToken = newToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedToken.isEmpty else { throw APIError.unauthorized }
-        let probe = APIClient(baseURL: url, token: trimmedToken)
-        let fetched = try await probe.appConfig()
-        keychain.save(trimmedToken, account: Self.tokenAccount)
-        defaults.set(url.absoluteString, forKey: Self.serverKey)
+        guard let phone = PhoneNumber.e164(phoneText) else { throw AuthError.invalidPhone }
+        let fetched = try await APIClient.authConfig(baseURL: url)
+        try await SupabaseAuth(config: fetched).sendCode(phone: phone)
         serverURL = url
-        token = trimmedToken
-        config = fetched
+        authConfig = fetched
+        defaults.set(url.absoluteString, forKey: Self.serverKey)
+        defaults.set(try? JSONEncoder().encode(fetched), forKey: Self.authConfigKey)
+        return phone
+    }
+
+    func resendCode(phone: String) async throws {
+        guard let authConfig else { throw AuthError.sessionExpired }
+        try await SupabaseAuth(config: authConfig).sendCode(phone: phone)
+    }
+
+    /// 第二步：校验验证码，成功即登录。
+    func verify(phone: String, code: String) async throws {
+        guard let authConfig else { throw AuthError.sessionExpired }
+        let trimmed = code.filter(\.isNumber)
+        guard trimmed.count >= 6 else { throw AuthError.invalidCode }
+        let newTokens = try await SupabaseAuth(config: authConfig).verify(phone: phone, code: trimmed)
+        store(newTokens)
+        await refreshConfig()
+    }
+
+    func signOut() async {
+        if let authConfig, let tokens {
+            await SupabaseAuth(config: authConfig).signOut(tokens)
+        }
+        clearTokens()
+    }
+
+    // MARK: - 令牌
+
+    /// 返回可用的访问令牌，快过期时先刷新。多个请求同时触发时只刷新一次（刷新令牌只能用一次）。
+    func validAccessToken() async throws -> String {
+        guard let tokens, let authConfig else { throw AuthError.sessionExpired }
+        if !tokens.isExpired() { return tokens.accessToken }
+        if let refreshTask { return try await refreshTask.value.accessToken }
+        let task = Task { try await SupabaseAuth(config: authConfig).refresh(tokens) }
+        refreshTask = task
+        defer { refreshTask = nil }
+        do {
+            let refreshed = try await task.value
+            store(refreshed)
+            return refreshed.accessToken
+        } catch AuthError.sessionExpired {
+            clearTokens()
+            throw AuthError.sessionExpired
+        }
+    }
+
+    private func store(_ newTokens: AuthTokens) {
+        tokens = newTokens
+        if let data = try? JSONEncoder().encode(newTokens) {
+            keychain.save(String(decoding: data, as: UTF8.self), account: Self.tokensAccount)
+        }
+    }
+
+    private func clearTokens() {
+        keychain.delete(account: Self.tokensAccount)
+        tokens = nil
+        config = nil
     }
 
     func refreshConfig() async {
         guard let client else { return }
         if let fetched = try? await client.appConfig() { config = fetched }
-    }
-
-    func disconnect() {
-        keychain.delete(account: Self.tokenAccount)
-        defaults.removeObject(forKey: Self.serverKey)
-        serverURL = nil
-        token = nil
-        config = nil
     }
 
     /// 允许只填域名：自动补 https://，去掉末尾的 /。
