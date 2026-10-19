@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { digits, samePhone } from '../lib/phone.js';
+import { digits, samePhone, toE164AU } from '../lib/phone.js';
 import { dialVapi, reject, sayAndHangup, xmlEscape } from '../lib/twiml.js';
 import { findCallSids, pickByCallerAndTime } from '../lib/match.js';
 import { timingSafeEqualString } from '../lib/http.js';
@@ -148,4 +148,14 @@ test('forwarding test results are explained', () => {
   assert.match(explainOutbound({ status: 'completed', gotInbound: false }).text, /实时语音留言/);
   const waiting = summarizeTests([{ created_at: at(0), raw_params: { kind: 'outbound', status: 'dialing' } }], { ...base, now: t0.getTime() + 30000 });
   assert.equal(waiting[0].ok, null);
+});
+
+test('carrier ForwardedFrom without country code is normalised and matched', () => {
+  assert.equal(toE164AU('+478558140'), '+61478558140');
+  assert.equal(toE164AU('0478558140'), '+61478558140');
+  assert.equal(toE164AU('+61478558140'), '+61478558140');
+  assert.equal(toE164AU('+12025550123'), '+12025550123');
+  assert.equal(toE164AU(null), null);
+  assert.ok(samePhone('+478558140', '+61478558140'));
+  assert.ok(!samePhone('+478558140', '+61420576667'));
 });

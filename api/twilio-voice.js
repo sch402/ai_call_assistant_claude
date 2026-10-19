@@ -4,7 +4,7 @@ import twilio from 'twilio';
 import { db, logDbError } from '../lib/db.js';
 import { env, baseUrl, sipUri } from '../lib/env.js';
 import { bodyOf, sendXml } from '../lib/http.js';
-import { samePhone } from '../lib/phone.js';
+import { samePhone, toE164AU } from '../lib/phone.js';
 import { isForwardedTestCall, TEST_WINDOW_SECONDS } from '../lib/forwarding.js';
 import { dialVapi, reject, sayAndHangup } from '../lib/twiml.js';
 
@@ -26,7 +26,8 @@ export default async function handler(req, res) {
 
   const callSid = params.CallSid;
   const from = params.From || '';
-  const forwardedFrom = params.ForwardedFrom || null;
+  // 原始值保留在 raw_params 里；这里存补全后的标准格式。
+  const forwardedFrom = toE164AU(params.ForwardedFrom || null);
   const owner = env('OWNER_PHONE_NUMBER');
   const ourNumber = env('TWILIO_PHONE_NUMBER');
 
