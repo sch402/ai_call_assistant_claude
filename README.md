@@ -105,7 +105,9 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `lib/forwarding.js` | 自测结果判定与诊断文字 |
 | `api/admin/blocklist.js` | 拉黑或取消拉黑号码 |
 | `lib/assistant.js` | 助理的话术、安全规则、音色、摘要和结构化字段定义 |
+| `api/app-config.js` | 给 iOS App 的基础配置（代接号码、机主名字） |
 | `public/index.html` | 网页面板 |
+| `ios/` | iOS App（SwiftUI），构建方法见 `ios/README.md` |
 | `supabase/schema.sql` | 数据库表结构 |
 
 ## 来电归属规则

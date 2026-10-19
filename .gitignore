@@ -4,3 +4,9 @@ node_modules/
 !.env.example
 .vercel/
 .DS_Store
+# iOS（工程由 XcodeGen 生成）
+ios/*.xcodeproj/
+ios/CallAssistant/Info.plist
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
