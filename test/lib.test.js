@@ -4,7 +4,7 @@ import { digits, samePhone } from '../lib/phone.js';
 import { dialVapi, reject, sayAndHangup, xmlEscape } from '../lib/twiml.js';
 import { findCallSids, pickByCallerAndTime } from '../lib/match.js';
 import { timingSafeEqualString } from '../lib/http.js';
-import { assistantConfig, firstMessage, voiceFor } from '../lib/assistant.js';
+import { assistantConfig, voiceFor } from '../lib/assistant.js';
 import { normalizeBaseUrl, normalizeSupabaseUrl } from '../lib/env.js';
 
 test('phone numbers in different formats compare equal', () => {
@@ -84,7 +84,6 @@ test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   const cfg = assistantConfig({
     persona: 'Michael',
     voice: 'male-mature',
-    recordingNotice: true,
     serverUrl: 'https://x.test/api/vapi-webhook',
     webhookSecret: 's',
     maxCallSeconds: 300,
@@ -99,11 +98,16 @@ test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   assert.match(prompt, /never guess, confirm or deny/);
   assert.equal(cfg.voice.voiceId, 'cedar');
   assert.match(prompt, /Never claim to be human/);
-  assert.match(firstMessage({ recordingNotice: true }), /may be recorded/);
-  assert.doesNotMatch(firstMessage({ recordingNotice: false }), /recorded/);
-  assert.equal(firstMessage({ persona: 'Michael', recordingNotice: false }), "Hello, Michael speaking. Who's calling please?");
-  assert.doesNotMatch(firstMessage({ persona: 'Michael', recordingNotice: false }), /assistant/i);
-  assert.equal(firstMessage({ recordingNotice: false }), "Hello. Who's calling please?");
+  assert.equal(cfg.firstMessageMode, 'assistant-waits-for-user');
+  assert.equal(cfg.firstMessage, '');
+  assert.equal(cfg.startSpeakingPlan, undefined);
+  const hello = cfg.hooks.find((h) => h.on === 'customer.speech.timeout');
+  assert.equal(hello.options.timeoutSeconds, 3);
+  assert.equal(hello.options.triggerMaxCount, 1);
+  assert.deepEqual(hello.do, [{ type: 'say', exact: 'Hello?' }]);
+  assert.match(prompt, /this is Michael speaking/);
+  assert.match(prompt, /do NOT give your name/);
+  assert.match(prompt, /no goodbye, no pleasantries/);
   assert.equal(voiceFor('female-warm'), 'marin');
   assert.equal(voiceFor('nonsense'), 'cedar');
 });
