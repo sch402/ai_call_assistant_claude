@@ -1,6 +1,8 @@
 // 网页面板读取通话卡片。需要 DASHBOARD_TOKEN。
 import { db } from '../lib/db.js';
 import { checkDashboardToken, sendJson } from '../lib/http.js';
+import { env } from '../lib/env.js';
+import { summarizeTests } from '../lib/forwarding.js';
 
 const FIELDS = [
   'id',
@@ -29,9 +31,9 @@ export default async function handler(req, res) {
     db().from('calls').select(FIELDS).order('created_at', { ascending: false }).limit(50),
     db()
       .from('forward_tests')
-      .select('created_at,forwarded_from,matched_owner')
+      .select('created_at,forwarded_from,matched_owner,raw_params')
       .order('created_at', { ascending: false })
-      .limit(5),
+      .limit(20),
     db().from('blocklist').select('number,reason,created_at').order('created_at', { ascending: false }),
   ]);
   const error = calls.error || tests.error || blocked.error;
@@ -42,5 +44,9 @@ export default async function handler(req, res) {
     sendJson(res, 500, { error: (error.message || 'database error') + hint });
     return;
   }
-  sendJson(res, 200, { calls: calls.data, forwardTests: tests.data, blocklist: blocked.data });
+  const forwardTests = summarizeTests(tests.data || [], {
+    ourNumber: env('TWILIO_PHONE_NUMBER'),
+    ownerNumber: env('OWNER_PHONE_NUMBER'),
+  });
+  sendJson(res, 200, { calls: calls.data, forwardTests, blocklist: blocked.data });
 }

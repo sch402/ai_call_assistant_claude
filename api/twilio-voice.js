@@ -5,6 +5,7 @@ import { db, logDbError } from '../lib/db.js';
 import { env, baseUrl, sipUri } from '../lib/env.js';
 import { bodyOf, sendXml } from '../lib/http.js';
 import { samePhone } from '../lib/phone.js';
+import { isForwardedTestCall, TEST_WINDOW_SECONDS } from '../lib/forwarding.js';
 import { dialVapi, reject, sayAndHangup } from '../lib/twiml.js';
 
 export default async function handler(req, res) {
@@ -30,14 +31,25 @@ export default async function handler(req, res) {
   const ourNumber = env('TWILIO_PHONE_NUMBER');
 
   // 呼叫转移测试：我们自己的号码打给机主，机主不接，电话又被转回来。
-  if (samePhone(from, ourNumber)) {
+  // 有的运营商转移时会把来电显示改成机主号码，所以测试进行中的几分钟内也认这种情况。
+  const since = new Date(Date.now() - TEST_WINDOW_SECONDS * 1000).toISOString();
+  const pending = await db()
+    .from('forward_tests')
+    .select('id')
+    .eq('raw_params->>kind', 'outbound')
+    .gte('created_at', since)
+    .limit(1);
+  logDbError('forward_tests.select pending', pending);
+  const testActive = Boolean(pending.data?.length);
+
+  if (isForwardedTestCall({ from, forwardedFrom, ourNumber, ownerNumber: owner, testActive })) {
     logDbError(
-      'forward_tests.insert',
+      'forward_tests.insert inbound',
       await db().from('forward_tests').insert({
         call_sid: callSid,
         forwarded_from: forwardedFrom,
         matched_owner: samePhone(forwardedFrom, owner),
-        raw_params: params,
+        raw_params: { ...params, kind: 'inbound' },
       })
     );
     sendXml(res, sayAndHangup('Forwarding test received. Goodbye.'));

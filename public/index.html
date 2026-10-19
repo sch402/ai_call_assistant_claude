@@ -172,10 +172,9 @@ async function load() {
     const list = $('calls');
     list.replaceChildren(...(data.calls.length ? data.calls.map(card) : [el('p', { class: 'empty' }, '还没有来电记录')]));
     $('tests').hidden = !data.forwardTests.length;
-    $('tests-list').replaceChildren(...data.forwardTests.map((t) => el('p', { class: 'muted' },
-      fmtTime(t.created_at) + '：', t.forwarded_from
-        ? (t.matched_owner ? '成功，运营商带了转移来源 ' + t.forwarded_from + '（可共用号码）' : '收到转移来源 ' + t.forwarded_from + '，但与机主号码不符')
-        : '电话已转回，但运营商没有带转移来源（需要独立号码）')));
+    $('tests-list').replaceChildren(...data.forwardTests.map((t) => el('p', {},
+      el('span', { class: 'chip ' + (t.ok === true ? 'ok' : t.ok === false ? 'danger' : '') }, t.ok === true ? '成功' : t.ok === false ? '未转移' : '等待中'),
+      ' ', el('span', { class: 'muted' }, fmtTime(t.created_at) + '：'), t.text)));
     $('updated').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
   } catch (e) { status('读取失败', e.message); }
 }
@@ -202,8 +201,13 @@ $('setup').onclick = async () => {
   $('setup').disabled = false;
 };
 $('test').onclick = async () => {
-  if (!confirm('将用 Twilio 号码拨打你的手机。来电时请直接按「拒接」，约半分钟后刷新查看结果。')) return;
-  try { await api('/api/admin/check-forwarding', { method: 'POST' }); status('测试电话已拨出', '手机响起后请按拒接，然后点「刷新」。'); }
+  if (!confirm('将用 Twilio 号码拨打你的手机。来电时请按拒接或不接，约 1 分钟后结果会自动显示。')) return;
+  try {
+    await api('/api/admin/check-forwarding', { method: 'POST' });
+    status('测试电话已拨出', '手机响起后按拒接（测占线转移）或一直不接（测无人接听转移）。结果会在约 1 分钟内自动出现在下方。');
+    [20, 45, 70, 100].forEach((s) => setTimeout(load, s * 1000));
+    load();
+  }
   catch (e) { status('测试失败', e.message); }
 };
 

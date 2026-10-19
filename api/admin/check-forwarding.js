@@ -1,7 +1,9 @@
-// 呼叫转移自测：用 Twilio 号码给机主手机打一通电话，机主按拒接，
-// 电话应被运营商转回 Twilio 号码。来电 webhook 会记录运营商是否带了「转移来源」(ForwardedFrom)。
+// 呼叫转移自测：用 Twilio 号码给机主手机打一通电话，机主按拒接或不接，
+// 电话应被运营商转回 Twilio 号码。外呼的最终状态由 /api/forwarding-status 回调记录，
+// 转回来的来电由 /api/twilio-voice 记录，面板据此给出诊断。
 import twilio from 'twilio';
-import { env } from '../../lib/env.js';
+import { db, logDbError } from '../../lib/db.js';
+import { env, baseUrl } from '../../lib/env.js';
 import { checkDashboardToken, sendJson } from '../../lib/http.js';
 import { pause } from '../../lib/twiml.js';
 
@@ -19,9 +21,19 @@ export default async function handler(req, res) {
     const call = await client.calls.create({
       to: env('OWNER_PHONE_NUMBER'),
       from: env('TWILIO_PHONE_NUMBER'),
-      twiml: pause(40),
-      timeout: 30,
+      twiml: pause(60),
+      // 比运营商「无人接听转移」的等待时间（通常 5–30 秒）长，避免 Twilio 先挂断。
+      timeout: 60,
+      statusCallback: `${baseUrl()}/api/forwarding-status`,
+      statusCallbackEvent: ['completed'],
+      statusCallbackMethod: 'POST',
     });
+    logDbError(
+      'forward_tests.insert outbound',
+      await db()
+        .from('forward_tests')
+        .insert({ call_sid: call.sid, raw_params: { kind: 'outbound', status: 'dialing' } })
+    );
     sendJson(res, 200, { ok: true, callSid: call.sid });
   } catch (err) {
     sendJson(res, 500, { error: err.message });

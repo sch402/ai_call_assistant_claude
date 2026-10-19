@@ -100,7 +100,9 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `api/vapi-webhook.js` | Vapi 通话结束报告：写入转写、摘要和结构化字段 |
 | `api/calls.js` | 面板读取通话记录 |
 | `api/admin/setup.js` | 一键创建或同步 Vapi 助理、SIP 接入号和 Twilio webhook |
-| `api/admin/check-forwarding.js` | 呼叫转移自测 |
+| `api/admin/check-forwarding.js` | 呼叫转移自测：拨打机主手机 |
+| `api/forwarding-status.js` | 记录自测外呼的最终状态（无人接、拒接、被接起等），用于诊断 |
+| `lib/forwarding.js` | 自测结果判定与诊断文字 |
 | `api/admin/blocklist.js` | 拉黑或取消拉黑号码 |
 | `lib/assistant.js` | 助理的话术、安全规则、音色、摘要和结构化字段定义 |
 | `public/index.html` | 网页面板 |

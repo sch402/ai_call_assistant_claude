@@ -116,3 +116,36 @@ test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   assert.equal(voiceFor('female-warm'), 'marin');
   assert.equal(voiceFor('nonsense'), 'cedar');
 });
+
+import { explainOutbound, isForwardedTestCall, summarizeTests } from '../lib/forwarding.js';
+
+test('forwarded test calls are recognised even when caller ID is rewritten', () => {
+  const base = { ourNumber: '+61258496666', ownerNumber: '+61412345678' };
+  assert.ok(isForwardedTestCall({ ...base, from: '+61258496666', forwardedFrom: null, testActive: false }));
+  assert.ok(isForwardedTestCall({ ...base, from: '+61412345678', forwardedFrom: null, testActive: true }));
+  assert.ok(!isForwardedTestCall({ ...base, from: '+61412345678', forwardedFrom: null, testActive: false }));
+  assert.ok(!isForwardedTestCall({ ...base, from: '+61499999999', forwardedFrom: null, testActive: true }));
+});
+
+test('forwarding test results are explained', () => {
+  const base = { ourNumber: '+61258496666', ownerNumber: '+61412345678' };
+  const t0 = new Date('2026-10-19T03:00:00Z');
+  const at = (s) => new Date(t0.getTime() + s * 1000).toISOString();
+  const now = t0.getTime() + 300 * 1000;
+  const ok = summarizeTests(
+    [
+      { created_at: at(0), raw_params: { kind: 'outbound', status: 'completed', duration: 3 } },
+      { created_at: at(25), forwarded_from: '+61412345678', raw_params: { kind: 'inbound', From: '+61258496666' } },
+    ],
+    { ...base, now }
+  );
+  assert.equal(ok.length, 1);
+  assert.equal(ok[0].ok, true);
+  assert.match(ok[0].text, /共用号码/);
+  const noAnswer = summarizeTests([{ created_at: at(0), raw_params: { kind: 'outbound', status: 'no-answer' } }], { ...base, now });
+  assert.equal(noAnswer[0].ok, false);
+  assert.match(noAnswer[0].text, /\*\*61\*/);
+  assert.match(explainOutbound({ status: 'completed', gotInbound: false }).text, /实时语音留言/);
+  const waiting = summarizeTests([{ created_at: at(0), raw_params: { kind: 'outbound', status: 'dialing' } }], { ...base, now: t0.getTime() + 30000 });
+  assert.equal(waiting[0].ok, null);
+});
