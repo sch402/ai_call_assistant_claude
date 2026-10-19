@@ -82,7 +82,7 @@ test('token comparison', () => {
 
 test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   const cfg = assistantConfig({
-    persona: 'Michael',
+    ownerName: 'Michael',
     voice: 'male-mature',
     serverUrl: 'https://x.test/api/vapi-webhook',
     webhookSecret: 's',
@@ -105,8 +105,13 @@ test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   assert.equal(hello.options.timeoutSeconds, 3);
   assert.equal(hello.options.triggerMaxCount, 1);
   assert.deepEqual(hello.do, [{ type: 'say', exact: 'Hello?' }]);
-  assert.match(prompt, /this is Michael speaking/);
-  assert.match(prompt, /do NOT give your name/);
+  assert.match(prompt, /this is Michael's AI assistant/);
+  assert.match(prompt, /我是Michael的AI助手/);
+  assert.match(prompt, /This is an AI phone assistant/);
+  assert.match(prompt, /我是AI电话助手/);
+  const anon = assistantConfig({ ownerName: '', voice: 'male-mature', serverUrl: 'https://x.test', webhookSecret: 's', maxCallSeconds: 300 });
+  assert.match(anon.model.messages[0].content, /an AI assistant taking calls for this number/);
+  assert.doesNotMatch(anon.model.messages[0].content, /Michael/);
   assert.match(prompt, /no goodbye, no pleasantries/);
   assert.equal(voiceFor('female-warm'), 'marin');
   assert.equal(voiceFor('nonsense'), 'cedar');

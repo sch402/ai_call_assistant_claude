@@ -23,7 +23,8 @@ export default async function handler(req, res) {
   try {
     // 1. 助理
     const config = assistantConfig({
-      persona: env('ASSISTANT_NAME', 'Michael'),
+      // 机主的名字（来电方认识你时用的名字，例如英文名）。兼容旧变量 ASSISTANT_NAME。
+      ownerName: env('OWNER_NAME', env('ASSISTANT_NAME', '')),
       voice: env('ASSISTANT_VOICE', 'male-mature'),
       serverUrl: `${baseUrl()}/api/vapi-webhook`,
       webhookSecret: env('VAPI_WEBHOOK_SECRET'),
