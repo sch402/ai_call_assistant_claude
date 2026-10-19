@@ -4,7 +4,7 @@ import twilio from 'twilio';
 import { db, logDbError } from '../lib/db.js';
 import { env, baseUrl, sipUri } from '../lib/env.js';
 import { bodyOf, sendXml } from '../lib/http.js';
-import { samePhone, toE164AU } from '../lib/phone.js';
+import { forwardedBelongsTo, samePhone, toE164 } from '../lib/phone.js';
 import { isForwardedTestCall, TEST_WINDOW_SECONDS } from '../lib/forwarding.js';
 import { dialVapi, reject, sayAndHangup } from '../lib/twiml.js';
 
@@ -26,8 +26,11 @@ export default async function handler(req, res) {
 
   const callSid = params.CallSid;
   const from = params.From || '';
-  // 原始值保留在 raw_params 里；这里存补全后的标准格式。
-  const forwardedFrom = toE164AU(params.ForwardedFrom || null);
+  // 转移来源按 CalledCountry（我们这个 Twilio 号码所在国家）补全成 E.164；
+  // 补全不了就保留原值，并且不归属给任何人。原始参数完整保存在 raw_params 里。
+  const calledCountry = params.CalledCountry || params.ToCountry || null;
+  const rawForwardedFrom = params.ForwardedFrom || null;
+  const forwardedFrom = toE164(rawForwardedFrom, calledCountry) || rawForwardedFrom;
   const owner = env('OWNER_PHONE_NUMBER');
   const ourNumber = env('TWILIO_PHONE_NUMBER');
 
@@ -49,7 +52,7 @@ export default async function handler(req, res) {
       await db().from('forward_tests').insert({
         call_sid: callSid,
         forwarded_from: forwardedFrom,
-        matched_owner: samePhone(forwardedFrom, owner),
+        matched_owner: forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner }),
         raw_params: { ...params, kind: 'inbound' },
       })
     );
@@ -57,8 +60,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 这通电话能否确认属于机主：只认运营商带来的转移来源，绝不猜。
-  const attributed = samePhone(forwardedFrom, owner);
+  // 这通电话能否确认属于机主：只认运营商带来的转移来源，补全后必须与机主号码完全一致。
+  const attributed = forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner });
 
   // 数据库出错时只记日志，电话照常交给 AI 接听，不能因为记录失败而漏接。
   const blockResult = await db().from('blocklist').select('number').eq('number', from).maybeSingle();

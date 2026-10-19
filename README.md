@@ -108,6 +108,16 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `public/index.html` | 网页面板 |
 | `supabase/schema.sql` | 数据库表结构 |
 
+## 来电归属规则
+
+一通转移来电算不算机主的，只看运营商带来的转移来源（Twilio 的 `ForwardedFrom`）：
+
+1. 按 `CalledCountry`（接收转移的 Twilio 号码所在国家）把它补全成 E.164，例如澳洲运营商给的 `+478558140` 补成 `+61478558140`。不用 `FromCountry`，那是原始来电方的国家。
+2. 补全后必须与 `OWNER_PHONE_NUMBER` 完全一致才归属；补全不了（国家不在 `lib/phone.js` 的规则表里、长度不对）就不归属。
+3. 原始参数完整保存在 `calls.raw_params`，便于核对。
+
+多用户共用号码时还需要：整个用户表里恰好只有一位用户匹配才归属，否则不推送给任何人。
+
 ## 已知限制
 
 - 只支持一个机主（`OWNER_PHONE_NUMBER`），多用户和号码池留到 MVP 阶段。

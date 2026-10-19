@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { digits, samePhone, toE164AU } from '../lib/phone.js';
+import { digits, forwardedBelongsTo, samePhone, toE164 } from '../lib/phone.js';
 import { dialVapi, reject, sayAndHangup, xmlEscape } from '../lib/twiml.js';
 import { findCallSids, pickByCallerAndTime } from '../lib/match.js';
 import { timingSafeEqualString } from '../lib/http.js';
@@ -150,12 +150,27 @@ test('forwarding test results are explained', () => {
   assert.equal(waiting[0].ok, null);
 });
 
-test('carrier ForwardedFrom without country code is normalised and matched', () => {
-  assert.equal(toE164AU('+478558140'), '+61478558140');
-  assert.equal(toE164AU('0478558140'), '+61478558140');
-  assert.equal(toE164AU('+61478558140'), '+61478558140');
-  assert.equal(toE164AU('+12025550123'), '+12025550123');
-  assert.equal(toE164AU(null), null);
-  assert.ok(samePhone('+478558140', '+61478558140'));
-  assert.ok(!samePhone('+478558140', '+61420576667'));
+test('ForwardedFrom is completed using CalledCountry, never guessed', () => {
+  // 实测：Telstra/Optus 等转移时给的格式
+  assert.equal(toE164('+478558140', 'AU'), '+61478558140');
+  assert.equal(toE164('0478558140', 'AU'), '+61478558140');
+  assert.equal(toE164('+61478558140', 'AU'), '+61478558140');
+  // 国家未知或不在规则表里：不补全
+  assert.equal(toE164('+478558140', ''), null);
+  assert.equal(toE164('+478558140', 'CN'), null);
+  // 长度对不上：不补全
+  assert.equal(toE164('+47855814', 'AU'), null);
+  assert.equal(toE164(null, 'AU'), null);
+  assert.equal(toE164('2025550123', 'US'), '+12025550123');
+});
+
+test('attribution requires an exact E.164 match in the called country', () => {
+  const owner = '+61478558140';
+  assert.ok(forwardedBelongsTo({ forwardedFrom: '+478558140', calledCountry: 'AU', userNumber: owner }));
+  // 原始来电方的国家不能代替 CalledCountry
+  assert.ok(!forwardedBelongsTo({ forwardedFrom: '+478558140', calledCountry: undefined, userNumber: owner }));
+  // 末 9 位相同但国家不同的号码不算同一个人
+  assert.ok(!forwardedBelongsTo({ forwardedFrom: '+64478558140', calledCountry: 'AU', userNumber: owner }));
+  assert.ok(!forwardedBelongsTo({ forwardedFrom: '+478558141', calledCountry: 'AU', userNumber: owner }));
+  assert.ok(!forwardedBelongsTo({ forwardedFrom: null, calledCountry: 'AU', userNumber: owner }));
 });
