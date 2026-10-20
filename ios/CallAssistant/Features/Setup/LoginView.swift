@@ -1,12 +1,11 @@
 import SwiftUI
 
-/// 登录：手机号 + 短信验证码。登录的手机号就是要被代接（设置呼叫转移）的那个号码。
-/// iOS 不允许 App 读取本机号码，所以号码框用 .telephoneNumber，键盘会建议「通讯录 › 我的名片」里的号码；
-/// 验证码框用 .oneTimeCode，短信到达后键盘上方会出现验证码，点一下即可填入。
+/// 登录：手机号 → 短信验证码。
+/// iOS 不允许 App 读取本机号码：号码框用 .telephoneNumber，键盘会建议「我的名片」里的号码；
+/// 验证码框用 .oneTimeCode，短信到达后点一下键盘上方的建议即可填入，填满自动登录。
 struct LoginView: View {
     @Environment(AppSession.self) private var session
 
-    @State private var server = ""
     @State private var phoneText = ""
     @State private var code = ""
     /// 已发送验证码的号码（E.164）；为空时显示第一步
@@ -16,153 +15,163 @@ struct LoginView: View {
     @State private var resendAvailableAt = Date.distantPast
     @FocusState private var focused: Field?
 
-    private enum Field { case server, phone, code }
+    private enum Field { case phone, code }
+    private static let codeLength = 6
     private static let resendInterval: TimeInterval = 60
 
     var body: some View {
-        NavigationStack {
-            Form {
-                header
-                if let sentTo {
-                    codeStep(phone: sentTo)
-                } else {
-                    phoneStep
-                }
-            }
-            .toolbar(.hidden, for: .navigationBar)
-            .onAppear {
-                if server.isEmpty { server = session.savedServerText }
-                focused = server.isEmpty ? .server : .phone
+        VStack(spacing: 0) {
+            if let sentTo {
+                codeStep(phone: sentTo)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            } else {
+                phoneStep
+                    .transition(.move(edge: .leading).combined(with: .opacity))
             }
         }
-    }
-
-    private var header: some View {
-        Section {
-            VStack(spacing: 14) {
-                Image("LaunchLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 72, height: 72)
-                    .padding(18)
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                Text("来电助手")
-                    .font(.title2.weight(.semibold))
-                Text("没接的电话由 AI 接听，\n问清是谁、什么事，再告诉你。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-        }
-        .listRowBackground(Color.clear)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.snappy, value: sentTo)
+        .animation(.default, value: errorMessage)
+        .onAppear { focused = sentTo == nil ? .phone : .code }
     }
 
     // MARK: - 第一步：手机号
 
-    @ViewBuilder
     private var phoneStep: some View {
-        Section {
-            TextField("手机号，例如 0412 345 678", text: $phoneText)
-                .keyboardType(.phonePad)
-                .textContentType(.telephoneNumber)
-                .focused($focused, equals: .phone)
-        } header: {
-            Text("用手机号登录")
-        } footer: {
-            footer(default: "请填写这台 iPhone 的号码：AI 代接的就是打到这个号码、你没接的电话。我们会发一条短信验证码确认号码是你的。")
-        }
+        VStack(spacing: 0) {
+            Image("LaunchLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 44, height: 44)
+                .padding(14)
+                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .padding(.top, 56)
 
-        Section {
-            TextField("例如 aicallassistantclaude.vercel.app", text: $server)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
-                .textContentType(.URL)
-                .focused($focused, equals: .server)
-                .submitLabel(.next)
-                .onSubmit { focused = .phone }
-        } header: {
-            Text("服务地址")
-        } footer: {
-            Text("原型阶段需要填写后端的 Vercel 网址。")
-        }
+            Text("登录来电助手")
+                .font(.title.bold())
+                .padding(.top, 20)
 
-        Section {
+            HStack(spacing: 12) {
+                Text("+61")
+                    .foregroundStyle(.secondary)
+                Divider().frame(height: 22)
+                TextField("手机号", text: $phoneText)
+                    .keyboardType(.phonePad)
+                    .textContentType(.telephoneNumber)
+                    .focused($focused, equals: .phone)
+            }
+            .font(.title3)
+            .padding(.horizontal, 18)
+            .frame(height: 56)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(.top, 40)
+
+            errorLine
+
             primaryButton("获取验证码", action: sendCode)
-                .disabled(isWorking || server.isEmpty || phoneText.isEmpty)
+                .disabled(isWorking || PhoneNumber.e164(phoneText) == nil)
+                .padding(.top, 16)
         }
     }
 
     // MARK: - 第二步：验证码
 
-    @ViewBuilder
     private func codeStep(phone: String) -> some View {
-        Section {
-            TextField("6 位验证码", text: $code)
-                .keyboardType(.numberPad)
-                .textContentType(.oneTimeCode)
-                .focused($focused, equals: .code)
-                .font(.title3.monospacedDigit())
-                .onChange(of: code) { _, newValue in
-                    // 键盘自动填入验证码后直接登录
-                    if newValue.filter(\.isNumber).count == 6 { verify() }
-                }
-        } header: {
-            Text("验证码已发送到 \(PhoneFormat.display(phone))")
-        } footer: {
-            footer(default: "短信到达后，键盘上方会出现验证码，点一下即可填入。")
-        }
-
-        Section {
-            primaryButton("登录", action: verify)
-                .disabled(isWorking || code.filter(\.isNumber).count < 6)
-        }
-
-        Section {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let remaining = Int(resendAvailableAt.timeIntervalSince(context.date).rounded(.up))
-                let title = remaining > 0 ? String(localized: "重新发送（\(remaining) 秒）") : String(localized: "重新发送验证码")
-                Button(title) { resend(phone: phone) }
-                    .disabled(isWorking || remaining > 0)
-            }
-            Button("更换手机号") {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
                 sentTo = nil
                 code = ""
                 errorMessage = nil
                 focused = .phone
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 44, height: 44, alignment: .leading)
             }
+            .tint(.primary)
             .disabled(isWorking)
+            .padding(.top, 8)
+
+            Text("输入验证码")
+                .font(.title.bold())
+                .padding(.top, 16)
+            Text("已发送至 \(PhoneFormat.display(phone))")
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
+
+            CodeBoxes(code: code, length: Self.codeLength, isActive: focused == .code)
+                .contentShape(Rectangle())
+                .onTapGesture { focused = .code }
+                .overlay {
+                    // 透明的输入框负责键盘和验证码自动填充，格子只负责显示
+                    TextField("", text: $code)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .focused($focused, equals: .code)
+                        .foregroundStyle(.clear)
+                        .tint(.clear)
+                        .opacity(0.02)
+                }
+                .padding(.top, 32)
+                .onChange(of: code) { _, newValue in
+                    let digits = String(newValue.filter(\.isNumber).prefix(Self.codeLength))
+                    if digits != newValue {
+                        code = digits
+                        return
+                    }
+                    if digits.count == Self.codeLength { verify() }
+                }
+
+            errorLine
+
+            HStack {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let remaining = Int(resendAvailableAt.timeIntervalSince(context.date).rounded(.up))
+                    let title = remaining > 0 ? String(localized: "\(remaining) 秒后可重新发送") : String(localized: "重新发送")
+                    Button(title) { resend(phone: phone) }
+                        .disabled(isWorking || remaining > 0)
+                }
+                .font(.subheadline)
+                Spacer()
+                if isWorking { ProgressView() }
+            }
+            .padding(.top, 20)
         }
     }
 
     // MARK: - 组件
 
     @ViewBuilder
-    private func footer(default text: LocalizedStringKey) -> some View {
+    private var errorLine: some View {
         if let errorMessage {
-            Text(errorMessage).foregroundStyle(.red)
-        } else {
-            Text(text)
+            Text(errorMessage)
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 10)
         }
     }
 
     private func primaryButton(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack {
-                Spacer()
-                if isWorking { ProgressView() } else { Text(title).fontWeight(.semibold) }
-                Spacer()
+            ZStack {
+                Text(title).opacity(isWorking ? 0 : 1)
+                if isWorking { ProgressView().tint(.white) }
             }
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
         }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.roundedRectangle(radius: 16))
     }
 
     // MARK: - 操作
 
     private func sendCode() {
         run {
-            let phone = try await session.sendCode(serverText: server, phoneText: phoneText)
+            let phone = try await session.sendCode(phoneText: phoneText)
             resendAvailableAt = Date().addingTimeInterval(Self.resendInterval)
             code = ""
             sentTo = phone
@@ -200,6 +209,31 @@ struct LoginView: View {
                 errorMessage = error.localizedDescription
             }
             isWorking = false
+        }
+    }
+}
+
+/// 验证码格子：每格一位数字，当前要输入的格子描边高亮。
+private struct CodeBoxes: View {
+    let code: String
+    let length: Int
+    let isActive: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(0..<length, id: \.self) { index in
+                let digit = index < code.count ? String(code[code.index(code.startIndex, offsetBy: index)]) : ""
+                let isCurrent = isActive && index == min(code.count, length - 1)
+                Text(digit)
+                    .font(.title2.monospacedDigit().weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(isCurrent ? Color.accentColor : .clear, lineWidth: 2)
+                    }
+            }
         }
     }
 }

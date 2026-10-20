@@ -9,7 +9,7 @@ enum APIError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidServerURL: return String(localized: "服务地址不正确，请填写形如 xxx.vercel.app 的网址。")
+        case .invalidServerURL: return String(localized: "App 没有配置服务地址（project.yml 的 API_HOST）。")
         case .unauthorized: return String(localized: "登录已失效，请重新登录。")
         case .server(let message): return String(localized: "服务出错：\(message)")
         case .network(let message): return String(localized: "网络连接失败：\(message)")

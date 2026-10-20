@@ -1,12 +1,13 @@
 import Foundation
 import Observation
 
-/// 保存「连到哪个服务、谁登录了」，以及服务端返回的基础配置。
+/// 保存「谁登录了」，以及服务端返回的基础配置。
 /// 登录方式：手机号 + 短信验证码（Supabase Auth）。登录的手机号就是被转移来电的那个号码。
+/// 后端地址在编译时写进 Info.plist（project.yml 里的 API_HOST），用户不用填。
 @MainActor
 @Observable
 final class AppSession {
-    private(set) var serverURL: URL?
+    let serverURL: URL?
     private(set) var authConfig: AuthConfig?
     private(set) var config: AppConfig?
     var isSignedIn: Bool { serverURL != nil && authConfig != nil && tokens != nil }
@@ -17,19 +18,18 @@ final class AppSession {
     private let defaults: UserDefaults
     private let keychain: KeychainStore
 
-    private static let serverKey = "serverURL"
     private static let authConfigKey = "authConfig"
     private static let tokensAccount = "authTokens"
     /// 旧版本用访问口令连接，升级后清掉
     private static let legacyTokenAccount = "dashboardToken"
 
-    init(defaults: UserDefaults = .standard, keychain: KeychainStore = KeychainStore()) {
+    init(defaults: UserDefaults = .standard, keychain: KeychainStore = KeychainStore(),
+         serverURL: URL? = AppSession.bundledServerURL) {
         self.defaults = defaults
         self.keychain = keychain
+        self.serverURL = serverURL
         keychain.delete(account: Self.legacyTokenAccount)
-        if let saved = defaults.string(forKey: Self.serverKey) {
-            serverURL = URL(string: saved)
-        }
+        defaults.removeObject(forKey: "serverURL")
         if let data = defaults.data(forKey: Self.authConfigKey) {
             authConfig = try? JSONDecoder().decode(AuthConfig.self, from: data)
         }
@@ -38,8 +38,10 @@ final class AppSession {
         }
     }
 
-    /// 登录页预填上次用过的服务地址
-    var savedServerText: String { serverURL?.host() ?? "" }
+    /// Info.plist 里的 APIHost（来自 project.yml 的 API_HOST）
+    nonisolated static var bundledServerURL: URL? {
+        (Bundle.main.object(forInfoDictionaryKey: "APIHost") as? String).flatMap(normalizedServerURL)
+    }
 
     var client: APIClient? {
         guard let serverURL, isSignedIn else { return nil }
@@ -51,15 +53,13 @@ final class AppSession {
 
     // MARK: - 登录
 
-    /// 第一步：确认服务地址可用（取 /api/auth-config），再让 Supabase 发验证码。返回整理后的 E.164 号码。
-    func sendCode(serverText: String, phoneText: String) async throws -> String {
-        guard let url = Self.normalizedServerURL(serverText) else { throw APIError.invalidServerURL }
+    /// 第一步：取 Supabase 配置（/api/auth-config），再让 Supabase 发验证码。返回整理后的 E.164 号码。
+    func sendCode(phoneText: String) async throws -> String {
+        guard let serverURL else { throw APIError.invalidServerURL }
         guard let phone = PhoneNumber.e164(phoneText) else { throw AuthError.invalidPhone }
-        let fetched = try await APIClient.authConfig(baseURL: url)
+        let fetched = try await APIClient.authConfig(baseURL: serverURL)
         try await SupabaseAuth(config: fetched).sendCode(phone: phone)
-        serverURL = url
         authConfig = fetched
-        defaults.set(url.absoluteString, forKey: Self.serverKey)
         defaults.set(try? JSONEncoder().encode(fetched), forKey: Self.authConfigKey)
         return phone
     }

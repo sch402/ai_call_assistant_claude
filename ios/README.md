@@ -8,7 +8,7 @@ SwiftUI 原型，iOS 17+，只支持 iPhone、竖屏。界面暂时只有中文�
 
 | 页面 | 作用 |
 | --- | --- |
-| 登录 | 手机号 + 短信验证码（Supabase Auth，短信由 Twilio Verify 发送）。原型阶段还要填服务地址（Vercel 网址）。登录凭证存进钥匙串，访问令牌过期前自动刷新 |
+| 登录 | 手机号 + 短信验证码（Supabase Auth，短信由 Twilio Verify 发送），验证码填满自动登录。登录凭证存进钥匙串，访问令牌过期前自动刷新 |
 | 来电 | AI 接听过的电话列表，可筛选「全部 / 需回电 / 骚扰诈骗」；下拉刷新；详情页有中文摘要、来意、诈骗风险、完整转写，可回电、复制号码、拉黑 |
 | 代接设置 | 一键开启或关闭代接，分项设置与查询；iPhone 设置检查清单 |
 | 我的 | 手机号、代接号码、会员入口（即将推出）、隐私说明、退出登录 |
@@ -28,9 +28,10 @@ xcodegen generate
 open CallAssistant.xcodeproj
 ```
 
-1. 在 Xcode 选中 **CallAssistant** target › **Signing & Capabilities**，选择你的 Team。Bundle ID 默认是 `com.sch402.callassistant`，可以在 `project.yml` 里改。
-2. 连接 iPhone，选择设备，按 ⌘R 运行。
-3. 运行单元测试：⌘U。
+1. 后端地址写在 `project.yml` 的 `API_HOST`（默认 `aicallassistantclaude.vercel.app`），编译时写进 Info.plist，用户不用填。换了 Vercel 域名就改这里，再运行一次 `xcodegen generate`。
+2. 在 Xcode 选中 **CallAssistant** target › **Signing & Capabilities**，选择你的 Team。Bundle ID 默认是 `com.sch402.callassistant`，可以在 `project.yml` 里改。
+3. 连接 iPhone，选择设备，按 ⌘R 运行。
+4. 运行单元测试：⌘U。
 
 `CallAssistant.xcodeproj` 和 `Info.plist` 由 XcodeGen 生成，不提交到仓库。增删源码文件或修改 `project.yml` 后，重新运行一次 `xcodegen generate`。
 

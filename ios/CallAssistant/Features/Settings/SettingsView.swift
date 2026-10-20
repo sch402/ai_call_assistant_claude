@@ -24,7 +24,6 @@ struct SettingsView: View {
                     if let number = session.config?.twilioNumber {
                         LabeledContent("代接号码", value: PhoneFormat.display(number))
                     }
-                    LabeledContent("服务", value: session.serverURL?.host() ?? "未连接")
                 }
 
                 Section {
