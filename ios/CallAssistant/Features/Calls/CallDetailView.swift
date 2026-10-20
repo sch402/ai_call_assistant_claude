@@ -69,12 +69,15 @@ struct CallDetailView: View {
                     } label: {
                         Label(copied ? "已复制" : "复制号码", systemImage: copied ? "checkmark" : "doc.on.doc")
                     }
-                    Button(role: .destructive) {
-                        confirmBlock = true
-                    } label: {
-                        Label(blocked || call.isBlocked ? "已在黑名单" : "拉黑这个号码", systemImage: "hand.raised.fill")
+                    // 黑名单目前对所有用户生效，原型阶段只有机主能拉黑
+                    if session.config?.isOwner ?? true {
+                        Button(role: .destructive) {
+                            confirmBlock = true
+                        } label: {
+                            Label(blocked || call.isBlocked ? "已在黑名单" : "拉黑这个号码", systemImage: "hand.raised.fill")
+                        }
+                        .disabled(blocked || call.isBlocked)
                     }
-                    .disabled(blocked || call.isBlocked)
                 }
             }
         }

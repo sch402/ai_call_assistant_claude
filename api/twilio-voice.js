@@ -60,8 +60,18 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 这通电话能否确认属于机主：只认运营商带来的转移来源，补全后必须与机主号码完全一致。
-  const attributed = forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner });
+  // 这通电话归谁：只认运营商带来的转移来源，补全成 E.164 后必须与某位用户的登录手机号完全一致。
+  // profiles.phone 有唯一约束，所以最多只会匹配到一位用户。补全不了就不归属给任何人。
+  const forwardedE164 = toE164(rawForwardedFrom, calledCountry);
+  let userId = null;
+  if (forwardedE164) {
+    const profile = await db().from('profiles').select('user_id').eq('phone', forwardedE164).maybeSingle();
+    logDbError('profiles.select by forwarded_from', profile);
+    userId = profile.data?.user_id || null;
+  }
+  // 机主可能还没在 App 里登录过（profiles 里没有他），所以仍然单独和 OWNER_PHONE_NUMBER 比对一次。
+  const attributed =
+    Boolean(userId) || forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner });
 
   // 数据库出错时只记日志，电话照常交给 AI 接听，不能因为记录失败而漏接。
   const blockResult = await db().from('blocklist').select('number').eq('number', from).maybeSingle();
@@ -75,6 +85,7 @@ export default async function handler(req, res) {
       to_number: params.To || null,
       forwarded_from: forwardedFrom,
       attributed,
+      user_id: userId,
       stir_verstat: params.StirVerstat || null,
       caller_country: params.FromCountry || null,
       status: blocked ? 'blocked' : 'answering',

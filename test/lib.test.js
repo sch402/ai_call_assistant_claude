@@ -174,3 +174,27 @@ test('attribution requires an exact E.164 match in the called country', () => {
   assert.ok(!forwardedBelongsTo({ forwardedFrom: '+478558141', calledCountry: 'AU', userNumber: owner }));
   assert.ok(!forwardedBelongsTo({ forwardedFrom: null, calledCountry: 'AU', userNumber: owner }));
 });
+
+import { authPhoneToE164, bearerToken, isOwnerPhone, looksLikeJwt } from '../lib/auth.js';
+
+test('auth helpers: bearer token, JWT shape, Supabase phone format', () => {
+  assert.equal(bearerToken({ headers: { authorization: 'Bearer abc ' } }), 'abc');
+  assert.equal(bearerToken({ headers: { authorization: 'Basic abc' } }), '');
+  assert.equal(bearerToken({ headers: {} }), '');
+  assert.ok(looksLikeJwt('eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl'));
+  assert.ok(!looksLikeJwt('a-dashboard-token'));
+  assert.ok(!looksLikeJwt('a.b'));
+  // Supabase 存的手机号不带 +
+  assert.equal(authPhoneToE164('61412345678'), '+61412345678');
+  assert.equal(authPhoneToE164('+61412345678'), '+61412345678');
+  assert.equal(authPhoneToE164(''), null);
+  assert.equal(authPhoneToE164(undefined), null);
+});
+
+test('only the exact owner number counts as the owner', () => {
+  assert.ok(isOwnerPhone('61412345678', '+61412345678'));
+  assert.ok(!isOwnerPhone('61412345679', '+61412345678'));
+  // 国内格式的 OWNER_PHONE_NUMBER 不做猜测补全
+  assert.ok(!isOwnerPhone('61412345678', '0412345678'));
+  assert.ok(!isOwnerPhone(null, '+61412345678'));
+});

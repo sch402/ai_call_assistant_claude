@@ -2,7 +2,7 @@
 # 会生成 CallAssistant.xcodeproj。改了这个文件或增删源码文件后重新运行一次即可。
 name: CallAssistant
 options:
-  bundleIdPrefix: com.sch402
+  bundleIdPrefix: com.everyone
   deploymentTarget:
     iOS: "17.0"
   developmentLanguage: zh-Hans
@@ -13,8 +13,12 @@ settings:
     SWIFT_VERSION: "5.10"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    # 在 Xcode 的 Signing & Capabilities 里选择你的 Team，或在这里填写 Team ID
-    DEVELOPMENT_TEAM: ""
+    # 签名团队 Everyone Delivery Pty Ltd。这里要填 10 位 Team ID（不是团队名称），
+    # 在 developer.apple.com › Account › Membership details 里查看。填好后 xcodegen generate 不用再手动选 Team。
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 3YDFH675B7
+    # 后端（Vercel）域名，不带 https://。会写进 Info.plist，App 不再让用户填写。
+    API_HOST: aicallassistantclaude.vercel.app
 
 targets:
   CallAssistant:
@@ -24,7 +28,7 @@ targets:
       - path: CallAssistant
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sch402.callassistant
+        PRODUCT_BUNDLE_IDENTIFIER: com.everyone.callassistant
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -33,6 +37,7 @@ targets:
       path: CallAssistant/Info.plist
       properties:
         CFBundleDisplayName: 来电助手
+        APIHost: $(API_HOST)
         CFBundleDevelopmentRegion: zh-Hans
         CFBundleLocalizations: [zh-Hans, en]
         UILaunchScreen:
@@ -53,7 +58,7 @@ targets:
       - target: CallAssistant
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sch402.callassistant.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.everyone.callassistant.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:

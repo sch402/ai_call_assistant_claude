@@ -45,3 +45,19 @@ create table if not exists public.blocklist (
 alter table public.calls enable row level security;
 alter table public.forward_tests enable row level security;
 alter table public.blocklist enable row level security;
+
+-- ---- App 用户（手机号 + 短信验证码登录，由 Supabase Auth 管理）----
+-- 已经建过上面几张表的项目，重新整段运行一次即可：都是 if not exists。
+
+-- 用户第一次调用接口时由服务端写入（lib/auth.js）。phone 是验证过的登录手机号（E.164），
+-- 来电 webhook 用它和运营商带来的转移来源比对，唯一约束保证一个号码只归属一位用户。
+create table if not exists public.profiles (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  phone text not null unique,
+  created_at timestamptz not null default now()
+);
+alter table public.profiles enable row level security;
+
+-- 来电归属给哪位用户；为空表示运营商没带转移来源或没匹配到用户（原型阶段算机主的）。
+alter table public.calls add column if not exists user_id uuid references auth.users (id) on delete set null;
+create index if not exists calls_user_id_created_at_idx on public.calls (user_id, created_at desc);

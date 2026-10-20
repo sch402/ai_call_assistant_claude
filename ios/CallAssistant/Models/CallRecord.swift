@@ -4,6 +4,10 @@ import SwiftUI
 struct AppConfig: Decodable, Equatable {
     let twilioNumber: String
     let ownerName: String?
+    /// 当前登录的手机号（E.164）
+    let phone: String?
+    /// 是否机主（OWNER_PHONE_NUMBER）。原型阶段只有机主能拉黑号码。
+    let isOwner: Bool?
 }
 
 /// 一通来电，对应后端 calls 表。字段都按可选处理：通话进行中时还没有摘要。

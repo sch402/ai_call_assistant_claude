@@ -22,7 +22,12 @@
 
 1. 新建项目，区域选 **Sydney (ap-southeast-2)**。
 2. 打开 **SQL Editor**，粘贴 `supabase/schema.sql` 的全部内容并运行。
-3. 在 **Project Settings › API** 里记下 `Project URL` 和 `service_role` key。
+3. 在 **Project Settings › API** 里记下 `Project URL`、`anon public` key 和 `service_role` key。
+4. 开启手机号登录（iOS App 用）：
+   1. 在 Twilio 控制台 **Verify › Services** 新建一个 Service，记下 Service SID（`VA` 开头）。
+   2. 在 Supabase **Authentication › Sign In / Providers › Phone** 里打开 Phone，SMS provider 选 **Twilio Verify**，填 Twilio 的 Account SID、Auth Token 和上一步的 Service SID。
+   3. 开发时可以在同一页的 **Test phone numbers and OTPs** 里加一条固定验证码（例如 `61412345678=123456`），这个号码登录不发短信、不花钱。
+   4. 每条短信都要付费。原型阶段建议在 **Authentication › Rate Limits** 调低每小时短信上限；如果只给自己用，可以关闭 **Allow new users to sign up**，然后在 **Authentication › Users › Add user** 里手动添加允许登录的手机号。
 
 ### 2. Vapi
 
@@ -105,24 +110,29 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `lib/forwarding.js` | 自测结果判定与诊断文字 |
 | `api/admin/blocklist.js` | 拉黑或取消拉黑号码 |
 | `lib/assistant.js` | 助理的话术、安全规则、音色、摘要和结构化字段定义 |
-| `api/app-config.js` | 给 iOS App 的基础配置（代接号码、机主名字） |
+| `api/app-config.js` | 给 iOS App 的基础配置（代接号码、机主名字、登录手机号） |
+| `api/auth-config.js` | 给 iOS App 登录用的 Supabase 地址和 anon key（公开） |
+| `lib/auth.js` | 接口鉴权：`DASHBOARD_TOKEN`（网页面板）或 Supabase 登录令牌（App 用户） |
 | `public/index.html` | 网页面板 |
 | `ios/` | iOS App（SwiftUI），构建方法见 `ios/README.md` |
 | `supabase/schema.sql` | 数据库表结构 |
 
 ## 来电归属规则
 
-一通转移来电算不算机主的，只看运营商带来的转移来源（Twilio 的 `ForwardedFrom`）：
+一通转移来电归哪位用户，只看运营商带来的转移来源（Twilio 的 `ForwardedFrom`）：
 
 1. 按 `CalledCountry`（接收转移的 Twilio 号码所在国家）把它补全成 E.164，例如澳洲运营商给的 `+478558140` 补成 `+61478558140`。不用 `FromCountry`，那是原始来电方的国家。
-2. 补全后必须与 `OWNER_PHONE_NUMBER` 完全一致才归属；补全不了（国家不在 `lib/phone.js` 的规则表里、长度不对）就不归属。
-3. 原始参数完整保存在 `calls.raw_params`，便于核对。
+2. 补全后必须与某位用户的登录手机号（`profiles.phone`，短信验证过）完全一致才归属，写进 `calls.user_id`。`profiles.phone` 有唯一约束，所以最多只匹配一位用户。补全不了（国家不在 `lib/phone.js` 的规则表里、长度不对）就不归属。
+3. 机主（`OWNER_PHONE_NUMBER`）还没在 App 登录过时，仍按这个号码判断 `attributed`。
+4. 原始参数完整保存在 `calls.raw_params`，便于核对。
 
-多用户共用号码时还需要：整个用户表里恰好只有一位用户匹配才归属，否则不推送给任何人。
+App 里每位用户只看到归属给自己的来电。没带转移来源、无法归属的来电（`user_id` 为空）按单机主的设计算机主的，只有机主能看到；网页面板能看到全部。
 
 ## 已知限制
 
-- 只支持一个机主（`OWNER_PHONE_NUMBER`），多用户和号码池留到 MVP 阶段。
+- 所有用户共用一个 Twilio 号码。运营商不带转移来源的用户，来电无法归到他名下（只有机主能看到），需要等号码池给他分配独立号码。
+- 黑名单对所有用户生效，所以只有机主和网页面板能拉黑；按用户分开的黑名单留到 MVP。呼叫转移自测也仍然只测机主号码。
+- 手机号就是账户。号码换了或被运营商回收，需要在 Supabase 后台处理对应的用户。
 - Vapi 的服务器在美国，澳洲来电每轮对话会多一段跨太平洋往返。原型阶段先实测延迟。
 - 接通后 AI 不先说话，等对方开口；对方 3 秒没声音只说一句 "Hello?"。对方正常自我介绍后，AI 说 "this is <OWNER_NAME>'s AI assistant"；开场像银行、警察、移民局等高风险来电时，只说 "This is an AI phone assistant"（不带名字）；对方不自我介绍时先问是谁，弄清对方身份后再按前两种之一说明；明显诈骗直接挂断，不说任何话。音色和名字见 `.env.example`。
 - 默认不保存录音，只保存转写；不做通话记录告知。如果以后面向其他用户推出，需要请律师重新评估。

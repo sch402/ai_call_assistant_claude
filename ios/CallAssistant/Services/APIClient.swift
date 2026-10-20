@@ -9,8 +9,8 @@ enum APIError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidServerURL: return String(localized: "服务地址不正确，请填写形如 xxx.vercel.app 的网址。")
-        case .unauthorized: return String(localized: "口令不正确。")
+        case .invalidServerURL: return String(localized: "App 没有配置服务地址（project.yml 的 API_HOST）。")
+        case .unauthorized: return String(localized: "登录已失效，请重新登录。")
         case .server(let message): return String(localized: "服务出错：\(message)")
         case .network(let message): return String(localized: "网络连接失败：\(message)")
         case .decoding: return String(localized: "服务返回的数据无法识别，请确认后端已更新到最新版本。")
@@ -18,11 +18,18 @@ enum APIError: LocalizedError, Equatable {
     }
 }
 
-/// 后端接口：/api/app-config、/api/calls、/api/admin/blocklist。
+/// 后端接口：/api/auth-config（公开）、/api/app-config、/api/calls、/api/admin/blocklist。
+/// 除 auth-config 外都带 Supabase 登录令牌；令牌由 AppSession 提供，快过期时自动刷新。
 struct APIClient {
     let baseURL: URL
-    let token: String
+    let accessToken: () async throws -> String
     var session: URLSession = .shared
+
+    /// 登录前调用：取 Supabase 项目地址和 anon key，同时验证服务地址填得对不对。
+    static func authConfig(baseURL: URL, session: URLSession = .shared) async throws -> AuthConfig {
+        let client = APIClient(baseURL: baseURL, accessToken: { "" }, session: session)
+        return try await client.send("api/auth-config", method: "GET", body: Optional<String>.none, authorized: false)
+    }
 
     func appConfig() async throws -> AppConfig {
         try await get("api/app-config")
@@ -44,11 +51,14 @@ struct APIClient {
         try await send(path, method: "GET", body: Optional<String>.none)
     }
 
-    private func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B?) async throws -> T {
+    private func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B?, authorized: Bool = true) async throws -> T {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
         request.timeoutInterval = 20
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if authorized {
+            let token = try await accessToken()
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -64,6 +74,7 @@ struct APIClient {
         }
         guard let http = response as? HTTPURLResponse else { throw APIError.network("无响应") }
         if http.statusCode == 401 { throw APIError.unauthorized }
+        if http.statusCode == 404 && !authorized { throw APIError.server("找不到登录配置接口，请确认后端已部署最新版本") }
         guard (200..<300).contains(http.statusCode) else {
             let message = (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.error
             throw APIError.server(message ?? "HTTP \(http.statusCode)")

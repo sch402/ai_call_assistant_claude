@@ -1,6 +1,8 @@
-// 网页面板读取通话卡片。需要 DASHBOARD_TOKEN。
+// 读取通话卡片。网页面板（DASHBOARD_TOKEN）看全部；App 登录用户只看归属给自己的来电，
+// 机主另外能看到无法归属的来电（见 lib/auth.js 的 isOwnerPhone）。
+import { authenticate } from '../lib/auth.js';
 import { db } from '../lib/db.js';
-import { checkDashboardToken, sendJson } from '../lib/http.js';
+import { sendJson } from '../lib/http.js';
 import { env } from '../lib/env.js';
 import { summarizeTests } from '../lib/forwarding.js';
 
@@ -23,10 +25,23 @@ const FIELDS = [
 ].join(',');
 
 export default async function handler(req, res) {
-  if (!checkDashboardToken(req)) {
+  const auth = await authenticate(req);
+  if (!auth) {
     sendJson(res, 401, { error: 'unauthorized' });
     return;
   }
+  if (auth.user) {
+    const { id, isOwner } = auth.user;
+    const query = db().from('calls').select(FIELDS).order('created_at', { ascending: false }).limit(50);
+    const mine = await (isOwner ? query.or(`user_id.eq.${id},user_id.is.null`) : query.eq('user_id', id));
+    if (mine.error) {
+      sendJson(res, 500, { error: mine.error.message || 'database error' });
+      return;
+    }
+    sendJson(res, 200, { calls: mine.data });
+    return;
+  }
+
   const [calls, tests, blocked] = await Promise.all([
     db().from('calls').select(FIELDS).order('created_at', { ascending: false }).limit(50),
     db()
