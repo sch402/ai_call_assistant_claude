@@ -112,6 +112,7 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `lib/assistant.js` | 助理的话术、安全规则、音色、摘要和结构化字段定义 |
 | `api/app-config.js` | 给 iOS App 的基础配置（代接号码、机主名字、登录手机号） |
 | `api/auth-config.js` | 给 iOS App 登录用的 Supabase 地址和 anon key（公开） |
+| `lib/entitlement.js` | 订阅状态（3 天宽限期）与来电接听 / 拒接判定 |
 | `lib/auth.js` | 接口鉴权：`DASHBOARD_TOKEN`（网页面板）或 Supabase 登录令牌（App 用户） |
 | `public/index.html` | 网页面板 |
 | `ios/` | iOS App（SwiftUI），构建方法见 `ios/README.md` |
@@ -126,11 +127,50 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 3. 机主（`OWNER_PHONE_NUMBER`）还没在 App 登录过时，仍按这个号码判断 `attributed`。
 4. 原始参数完整保存在 `calls.raw_params`，便于核对。
 
-App 里每位用户只看到归属给自己的来电。没带转移来源、无法归属的来电（`user_id` 为空）按单机主的设计算机主的，只有机主能看到；网页面板能看到全部。
+App 里每位用户只看到归属给自己的来电，网页面板能看到全部。
+
+## 订阅与拒接
+
+用户手机上的呼叫转移保存在运营商那边，我们无法远程关闭。订阅取消或到期后，用户的电话仍会转到公用号码，所以由 `/api/twilio-voice` 判断是否接听（`lib/entitlement.js`）：
+
+| 情况 | 处理 | `calls.status` |
+| --- | --- | --- |
+| 转移来源对应的用户订阅有效，或是机主 | AI 接听 | `answering` |
+| 订阅到期 3 天内（宽限期） | 照常接听，App 提示续费 | `answering` |
+| 宽限期已过，或订阅被停用（`revoked`） | 拒接，App 提示续费或关闭呼叫转移 | `unpaid` |
+| 转移来源对应不到任何用户、没带转移来源、直接拨打公用号码 | 拒接 | `rejected` |
+
+- 拒接用的是 `<Reject>`，在接通前完成，不调用 Vapi。拒接的来电仍会记录下来，用户能在 App 里看到自己漏接了哪些电话。
+- 查询用户表或订阅表出错时，按可以接听处理，避免因数据库故障漏接付费用户。
+- 没带转移来源的来电无法分辨是谁的，默认拒接。运营商不带转移来源的用户，无法使用公用号码。`ACCEPT_UNATTRIBUTED_CALLS=true` 可以恢复旧原型「全部接听、算机主的」的行为，但这样过期用户也能继续免费使用。
+
+**手动开通订阅**（接入苹果内购之前）：用户先在 App 里登录一次，让 `profiles` 表里有他的手机号，然后在 Supabase SQL Editor 运行：
+
+```sql
+-- 开通或续费到某个日期；expires_at 写 null 表示不过期
+insert into subscriptions (user_id, expires_at, note)
+select user_id, '2026-12-31T23:59:59+11:00', '手动开通'
+from profiles where phone = '+61412345678'
+on conflict (user_id) do update set expires_at = excluded.expires_at, status = 'active', updated_at = now();
+
+-- 立即停用（例如退款），没有宽限期
+update subscriptions set status = 'revoked', updated_at = now()
+where user_id = (select user_id from profiles where phone = '+61412345678');
+```
+
+## 公用号码的并发
+
+一个 Twilio 号码可以同时接很多通电话，并发数是按账户算的，不按号码算：
+
+- **Twilio**：账户通过 Business Primary Customer Profile（企业资料）审核后，并发不限。没通过审核的新账户只能同时通 2 到 3 通电话（试用账户 5 通），而 2026 年 2 月 3 日以后升级的账户必须有 Business 资料才能不限并发。在 Twilio 控制台 **Trust Hub** 里提交企业资料。
+- **Vapi**：每个账户默认同时 10 通，超出的来电会排队或失败。可以在 Vapi 控制台 **Settings › Billing** 加购并发数。
+
+用户多了以后，并发上限取决于 Vapi 的购买量。
 
 ## 已知限制
 
-- 所有用户共用一个 Twilio 号码。运营商不带转移来源的用户，来电无法归到他名下（只有机主能看到），需要等号码池给他分配独立号码。
+- 所有用户共用一个 Twilio 号码。运营商不带转移来源的用户，来电会被拒接，以后需要用号码池给他分配独立号码。
+- 订阅暂时在数据库里手动维护，苹果内购（StoreKit 2 + App Store Server Notifications）还没接入。过期用户只能在打开 App 时看到提醒，推送还没做。
 - 黑名单对所有用户生效，所以只有机主和网页面板能拉黑；按用户分开的黑名单留到 MVP。呼叫转移自测也仍然只测机主号码。
 - 手机号就是账户。号码换了或被运营商回收，需要在 Supabase 后台处理对应的用户。
 - Vapi 的服务器在美国，澳洲来电每轮对话会多一段跨太平洋往返。原型阶段先实测延迟。

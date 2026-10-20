@@ -122,3 +122,34 @@ final class LoginTests: XCTestCase {
         XCTAssertEqual(map(500, "not json"), .server("HTTP 500"))
     }
 }
+
+final class SubscriptionTests: XCTestCase {
+    func testAppConfigWithSubscription() throws {
+        let json = """
+        {"twilioNumber":"+61258496666","ownerName":"","phone":"+61478558140","isOwner":false,
+         "subscription":{"state":"grace","expiresAt":"2026-10-18T00:00:00.000Z","graceEndsAt":"2026-10-21T00:00:00.000Z","graceDays":3},
+         "apiVersion":3}
+        """
+        let config = try JSONDecoder.api.decode(AppConfig.self, from: Data(json.utf8))
+        XCTAssertEqual(config.subscription?.state, .grace)
+        XCTAssertEqual(config.subscription?.isAnswering, true)
+        XCTAssertNotNil(config.subscription?.graceEndsAt)
+    }
+
+    func testOwnerSubscriptionHasNoDates() throws {
+        let json = """
+        {"twilioNumber":"+61258496666","isOwner":true,"subscription":{"state":"active","expiresAt":null,"graceEndsAt":null,"graceDays":3}}
+        """
+        let config = try JSONDecoder.api.decode(AppConfig.self, from: Data(json.utf8))
+        XCTAssertEqual(config.subscription?.state, .active)
+        XCTAssertNil(config.subscription?.expiresAt)
+    }
+
+    func testUnpaidCallsAreLabelled() throws {
+        let json = #"{"id":"x","created_at":"2026-10-19T03:59:50Z","status":"unpaid","from_number":"+61420576667"}"#
+        let call = try JSONDecoder.api.decode(CallRecord.self, from: Data(json.utf8))
+        XCTAssertTrue(call.isUnpaid)
+        XCTAssertEqual(call.headline, "订阅已过期，这通电话没有接听")
+        XCTAssertFalse(call.needsAttention)
+    }
+}

@@ -198,3 +198,46 @@ test('only the exact owner number counts as the owner', () => {
   assert.ok(!isOwnerPhone('61412345678', '0412345678'));
   assert.ok(!isOwnerPhone(null, '+61412345678'));
 });
+
+import { canAnswer, decideCall, entitlementOf } from '../lib/entitlement.js';
+
+test('subscription states with a 3-day grace period', () => {
+  const now = Date.parse('2026-10-20T00:00:00Z');
+  const at = (days) => new Date(now + days * 86400000).toISOString();
+  assert.equal(entitlementOf(null, { now }).state, 'none');
+  assert.equal(entitlementOf(null, { now, isOwner: true }).state, 'active');
+  assert.equal(entitlementOf({ status: 'active', expires_at: null }, { now }).state, 'active');
+  assert.equal(entitlementOf({ status: 'active', expires_at: at(1) }, { now }).state, 'active');
+  const grace = entitlementOf({ status: 'active', expires_at: at(-2) }, { now });
+  assert.equal(grace.state, 'grace');
+  assert.equal(grace.graceEndsAt, at(1));
+  assert.equal(entitlementOf({ status: 'active', expires_at: at(-3) }, { now }).state, 'expired');
+  // 退款或人工停用：立即失效，没有宽限期
+  assert.equal(entitlementOf({ status: 'revoked', expires_at: at(10) }, { now }).state, 'expired');
+  assert.ok(canAnswer({ state: 'grace' }));
+  assert.ok(!canAnswer({ state: 'none' }));
+});
+
+test('calls on the shared number are answered only for entitled, identified users', () => {
+  const active = { state: 'active' };
+  const expired = { state: 'expired' };
+  assert.deepEqual(decideCall({ userId: 'u', entitlement: active, hasForwardedFrom: true }), {
+    answer: true,
+    status: 'answering',
+    reason: 'active',
+  });
+  assert.equal(decideCall({ userId: 'u', entitlement: { state: 'grace' }, hasForwardedFrom: true }).answer, true);
+  const unpaid = decideCall({ userId: 'u', entitlement: expired, hasForwardedFrom: true });
+  assert.equal(unpaid.answer, false);
+  assert.equal(unpaid.status, 'unpaid');
+  // 机主还没登录过也照常接听
+  assert.equal(decideCall({ userId: null, ownerMatch: true, entitlement: active, hasForwardedFrom: true }).answer, true);
+  // 分不清是谁的：默认拒接
+  const unknown = decideCall({ userId: null, entitlement: { state: 'none' }, hasForwardedFrom: true });
+  assert.deepEqual(unknown, { answer: false, status: 'rejected', reason: 'unknown_user' });
+  assert.equal(decideCall({ userId: null, entitlement: { state: 'none' }, hasForwardedFrom: false }).reason, 'no_forwarded_from');
+  assert.equal(
+    decideCall({ userId: null, entitlement: { state: 'none' }, hasForwardedFrom: false, acceptUnattributed: true }).answer,
+    true
+  );
+});

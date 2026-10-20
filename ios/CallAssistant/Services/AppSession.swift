@@ -10,6 +10,8 @@ final class AppSession {
     let serverURL: URL?
     private(set) var authConfig: AuthConfig?
     private(set) var config: AppConfig?
+    /// 当前标签页。放在这里是为了让提示条能跳到「代接设置」。
+    var selectedTab: AppTab = .calls
     var isSignedIn: Bool { serverURL != nil && authConfig != nil && tokens != nil }
     var phone: String? { tokens?.phone }
 

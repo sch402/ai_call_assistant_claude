@@ -1,11 +1,13 @@
 // Twilio 号码的「来电」webhook。
-// 流程：校验请求确实来自 Twilio → 记录转移来源等信息 → 黑名单直接拒接 → 其余桥接给 Vapi 语音助理。
+// 流程：校验请求确实来自 Twilio → 按转移来源找到用户 → 订阅无效或无法归属的直接拒接
+//      → 黑名单直接拒接 → 其余桥接给 Vapi 语音助理。拒接（<Reject>）在接通前完成，不产生通话费用。
 import twilio from 'twilio';
 import { db, logDbError } from '../lib/db.js';
 import { env, baseUrl, sipUri } from '../lib/env.js';
 import { bodyOf, sendXml } from '../lib/http.js';
 import { forwardedBelongsTo, samePhone, toE164 } from '../lib/phone.js';
 import { isForwardedTestCall, TEST_WINDOW_SECONDS } from '../lib/forwarding.js';
+import { decideCall, entitlementOf } from '../lib/entitlement.js';
 import { dialVapi, reject, sayAndHangup } from '../lib/twiml.js';
 
 export default async function handler(req, res) {
@@ -64,19 +66,39 @@ export default async function handler(req, res) {
   // profiles.phone 有唯一约束，所以最多只会匹配到一位用户。补全不了就不归属给任何人。
   const forwardedE164 = toE164(rawForwardedFrom, calledCountry);
   let userId = null;
+  let lookupFailed = false;
   if (forwardedE164) {
     const profile = await db().from('profiles').select('user_id').eq('phone', forwardedE164).maybeSingle();
-    logDbError('profiles.select by forwarded_from', profile);
+    lookupFailed = Boolean(logDbError('profiles.select by forwarded_from', profile));
     userId = profile.data?.user_id || null;
   }
   // 机主可能还没在 App 里登录过（profiles 里没有他），所以仍然单独和 OWNER_PHONE_NUMBER 比对一次。
-  const attributed =
-    Boolean(userId) || forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner });
+  const ownerMatch = forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner });
+  const attributed = Boolean(userId) || ownerMatch;
+
+  // 订阅：到期后宽限 3 天，之后拒接。查询出错时按有效处理，宁可多接也不能因为数据库故障漏接付费用户。
+  let entitlement = entitlementOf(null, { isOwner: ownerMatch });
+  if (userId && !ownerMatch) {
+    const sub = await db().from('subscriptions').select('status,expires_at').eq('user_id', userId).maybeSingle();
+    entitlement = logDbError('subscriptions.select', sub) ? { state: 'active' } : entitlementOf(sub.data);
+  }
+  const decision = decideCall({
+    userId,
+    ownerMatch,
+    entitlement,
+    hasForwardedFrom: Boolean(forwardedE164),
+    // 查不了用户表时同样先接听
+    acceptUnattributed: lookupFailed || env('ACCEPT_UNATTRIBUTED_CALLS', 'false') === 'true',
+  });
 
   // 数据库出错时只记日志，电话照常交给 AI 接听，不能因为记录失败而漏接。
-  const blockResult = await db().from('blocklist').select('number').eq('number', from).maybeSingle();
-  logDbError('blocklist.select', blockResult);
-  const blocked = blockResult.data;
+  let blocked = null;
+  if (decision.answer) {
+    const blockResult = await db().from('blocklist').select('number').eq('number', from).maybeSingle();
+    logDbError('blocklist.select', blockResult);
+    blocked = blockResult.data;
+  }
+  const status = blocked ? 'blocked' : decision.status;
 
   const saved = await db().from('calls').upsert(
     {
@@ -88,14 +110,14 @@ export default async function handler(req, res) {
       user_id: userId,
       stir_verstat: params.StirVerstat || null,
       caller_country: params.FromCountry || null,
-      status: blocked ? 'blocked' : 'answering',
-      raw_params: params,
+      status,
+      raw_params: { ...params, decision: decision.reason },
     },
     { onConflict: 'call_sid' }
   );
   logDbError('calls.upsert', saved);
 
-  if (blocked) {
+  if (status !== 'answering') {
     sendXml(res, reject());
     return;
   }

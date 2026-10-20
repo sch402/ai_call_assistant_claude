@@ -140,6 +140,8 @@ function card(call) {
     s.recommended_action ? el('span', { class: 'chip' }, ACTION[s.recommended_action] || s.recommended_action) : null,
     call.status === 'blocked' ? el('span', { class: 'chip danger' }, '黑名单已拒接') : null,
     call.status === 'answering' ? el('span', { class: 'chip' }, '通话中或报告未到') : null,
+    call.status === 'unpaid' ? el('span', { class: 'chip danger' }, '订阅失效已拒接') : null,
+    call.status === 'rejected' ? el('span', { class: 'chip warn' }, '无法归属已拒接') : null,
     call.attributed ? null : el('span', { class: 'chip warn' }, '无转移来源'),
     MATCH[call.match_method] ? el('span', { class: 'chip warn' }, MATCH[call.match_method]) : null,
   ];

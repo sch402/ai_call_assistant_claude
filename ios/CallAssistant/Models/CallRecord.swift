@@ -8,6 +8,21 @@ struct AppConfig: Decodable, Equatable {
     let phone: String?
     /// 是否机主（OWNER_PHONE_NUMBER）。原型阶段只有机主能拉黑号码。
     let isOwner: Bool?
+    let subscription: SubscriptionInfo?
+}
+
+/// 订阅状态（后端 lib/entitlement.js）。到期后宽限期内照常代接，之后来电直接拒接。
+struct SubscriptionInfo: Decodable, Equatable {
+    enum State: String, Decodable {
+        case active, grace, expired, none
+    }
+
+    let state: State
+    let expiresAt: Date?
+    let graceEndsAt: Date?
+
+    /// AI 是否还在代接
+    var isAnswering: Bool { state == .active || state == .grace }
 }
 
 /// 一通来电，对应后端 calls 表。字段都按可选处理：通话进行中时还没有摘要。
@@ -88,6 +103,8 @@ extension CallRecord {
 
     var isBlocked: Bool { status == "blocked" }
     var isInProgress: Bool { status == "answering" }
+    /// 订阅失效期间转过来的来电：没有接听，直接拒接了
+    var isUnpaid: Bool { status == "unpaid" }
 
     /// 列表标题：对方自称的名字和机构，没有就显示号码。
     var title: String {
@@ -100,6 +117,7 @@ extension CallRecord {
 
     var headline: String {
         if isBlocked { return String(localized: "黑名单号码，已直接拒接") }
+        if isUnpaid { return String(localized: "订阅已过期，这通电话没有接听") }
         if isInProgress { return String(localized: "通话中，或通话报告尚未生成") }
         return structured?.summaryZh ?? summary ?? String(localized: "没有生成摘要")
     }

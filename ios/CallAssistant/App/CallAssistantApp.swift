@@ -28,17 +28,25 @@ struct RootView: View {
     }
 }
 
+enum AppTab: Hashable {
+    case calls, forwarding, settings
+}
+
 struct MainTabView: View {
     @Environment(AppSession.self) private var session
 
     var body: some View {
-        TabView {
+        @Bindable var session = session
+        TabView(selection: $session.selectedTab) {
             CallListView()
                 .tabItem { Label("来电", systemImage: "phone.bubble") }
+                .tag(AppTab.calls)
             ForwardingView()
                 .tabItem { Label("代接设置", systemImage: "arrow.triangle.turn.up.right.circle") }
+                .tag(AppTab.forwarding)
             SettingsView()
                 .tabItem { Label("我的", systemImage: "person.crop.circle") }
+                .tag(AppTab.settings)
         }
         .task { await session.refreshConfig() }
     }

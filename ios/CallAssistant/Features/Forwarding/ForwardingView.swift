@@ -13,6 +13,8 @@ struct ForwardingView: View {
     @State private var activeCode: ActiveCode?
 
     private var number: String? { session.config?.twilioNumber }
+    /// 订阅无效时不让开启代接（转过来也会被拒接），但始终可以关闭
+    private var canEnable: Bool { session.config?.subscription?.isAnswering ?? true }
     private var isEnabled: Bool { enabledAt > 0 }
 
     var body: some View {
@@ -77,6 +79,10 @@ struct ForwardingView: View {
             if let number {
                 LabeledContent("代接号码", value: PhoneFormat.display(number))
             }
+            if let subscription = session.config?.subscription, subscription.state != .active {
+                SubscriptionBanner(info: subscription)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
         } footer: {
             Text("状态以你在本 App 里的确认为准。想确认是否生效，可以用另一部手机打你的手机，不接，看来电记录里是否出现。")
         }
@@ -95,6 +101,7 @@ struct ForwardingView: View {
                 Label("开启代接", systemImage: "phone.arrow.right")
                     .font(.headline)
             }
+            .disabled(!canEnable)
             Button(role: .destructive) {
                 open(.cancelAll, number: number)
             } label: {
@@ -143,6 +150,7 @@ struct ForwardingView: View {
                         Text(kind.detail).font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                .disabled(!canEnable && kind != .queryNoReply && kind != .queryBusy)
             }
         }
     }

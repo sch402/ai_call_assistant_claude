@@ -61,3 +61,19 @@ alter table public.profiles enable row level security;
 -- 来电归属给哪位用户；为空表示运营商没带转移来源或没匹配到用户（原型阶段算机主的）。
 alter table public.calls add column if not exists user_id uuid references auth.users (id) on delete set null;
 create index if not exists calls_user_id_created_at_idx on public.calls (user_id, created_at desc);
+
+-- ---- 订阅 ----
+-- 每位用户一行。原型阶段由你在 Table Editor 里手动维护；接入苹果内购后由服务端按 App Store 通知自动更新。
+--   expires_at 为空 = 不过期；到期后宽限 3 天照常接听，之后来电直接拒接（lib/entitlement.js）
+--   status = 'revoked'：退款或人工停用，立即失效
+create table if not exists public.subscriptions (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  plan text not null default 'pro',
+  status text not null default 'active' check (status in ('active', 'revoked')),
+  expires_at timestamptz,
+  source text not null default 'manual',      -- manual / app_store
+  original_transaction_id text unique,         -- App Store 的原始交易号，接入内购后使用
+  note text,
+  updated_at timestamptz not null default now()
+);
+alter table public.subscriptions enable row level security;

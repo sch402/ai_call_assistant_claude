@@ -12,10 +12,15 @@ struct CallListView: View {
                     CallDetailView(call: call, store: store)
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    Picker("筛选", selection: $store.filter) {
-                        ForEach(CallFilter.allCases) { Text($0.label).tag($0) }
+                    VStack(spacing: 8) {
+                        if let subscription = session.config?.subscription {
+                            SubscriptionBanner(info: subscription) { session.selectedTab = .forwarding }
+                        }
+                        Picker("筛选", selection: $store.filter) {
+                            ForEach(CallFilter.allCases) { Text($0.label).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                     .background(.bar)

@@ -1,5 +1,5 @@
 // 读取通话卡片。网页面板（DASHBOARD_TOKEN）看全部；App 登录用户只看归属给自己的来电，
-// 机主另外能看到无法归属的来电（见 lib/auth.js 的 isOwnerPhone）。
+// 机主另外能看到无法归属但仍被接听的来电（ACCEPT_UNATTRIBUTED_CALLS，或机主还没登录过时的来电）。
 import { authenticate } from '../lib/auth.js';
 import { db } from '../lib/db.js';
 import { sendJson } from '../lib/http.js';
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   if (auth.user) {
     const { id, isOwner } = auth.user;
     const query = db().from('calls').select(FIELDS).order('created_at', { ascending: false }).limit(50);
-    const mine = await (isOwner ? query.or(`user_id.eq.${id},user_id.is.null`) : query.eq('user_id', id));
+    const mine = await (isOwner ? query.or(`user_id.eq.${id},and(user_id.is.null,status.neq.rejected)`) : query.eq('user_id', id));
     if (mine.error) {
       sendJson(res, 500, { error: mine.error.message || 'database error' });
       return;
