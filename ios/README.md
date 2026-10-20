@@ -29,7 +29,7 @@ open CallAssistant.xcodeproj
 ```
 
 1. 后端地址写在 `project.yml` 的 `API_HOST`（默认 `aicallassistantclaude.vercel.app`），编译时写进 Info.plist，用户不用填。换了 Vercel 域名就改这里，再运行一次 `xcodegen generate`。
-2. 在 Xcode 选中 **CallAssistant** target › **Signing & Capabilities**，选择你的 Team。Bundle ID 默认是 `com.sch402.callassistant`，可以在 `project.yml` 里改。
+2. 签名已写在 `project.yml`：Bundle ID `com.everyone.callassistant`，团队 Everyone Delivery Pty Ltd（`DEVELOPMENT_TEAM` 填的是 Team ID），自动签名。生成工程后不用再到 Signing & Capabilities 里选 Team。
 3. 连接 iPhone，选择设备，按 ⌘R 运行。
 4. 运行单元测试：⌘U。
 
