@@ -77,3 +77,8 @@ create table if not exists public.subscriptions (
   updated_at timestamptz not null default now()
 );
 alter table public.subscriptions enable row level security;
+
+-- 苹果内购用到的字段
+alter table public.subscriptions add column if not exists environment text;      -- Production / Sandbox
+alter table public.subscriptions add column if not exists auto_renew boolean;    -- 用户是否关闭了自动续费
+alter table public.subscriptions add column if not exists last_signed_at timestamptz;  -- 苹果签名时间，用来丢弃乱序到达的旧通知

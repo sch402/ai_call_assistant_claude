@@ -14,10 +14,16 @@ export default async function handler(req, res) {
   }
   const isOwner = Boolean(auth.admin || auth.user.isOwner);
   let subscription = entitlementOf(null, { isOwner });
+  let autoRenew = null;
   if (!isOwner) {
-    const sub = await db().from('subscriptions').select('status,expires_at').eq('user_id', auth.user.id).maybeSingle();
+    const sub = await db()
+      .from('subscriptions')
+      .select('status,expires_at,auto_renew')
+      .eq('user_id', auth.user.id)
+      .maybeSingle();
     logDbError('subscriptions.select', sub);
     subscription = entitlementOf(sub.data);
+    autoRenew = sub.data?.auto_renew ?? null;
   }
   sendJson(res, 200, {
     twilioNumber: env('TWILIO_PHONE_NUMBER'),
@@ -25,7 +31,8 @@ export default async function handler(req, res) {
     phone: auth.user?.phone || null,
     isOwner,
     // state: active / grace / expired / none；expiresAt、graceEndsAt 为 ISO 时间或 null
-    subscription: { ...subscription, graceDays: GRACE_DAYS },
-    apiVersion: 3,
+    // autoRenew：苹果内购时用户是否还开着自动续费（null = 未知或手动开通）
+    subscription: { ...subscription, graceDays: GRACE_DAYS, autoRenew },
+    apiVersion: 4,
   });
 }

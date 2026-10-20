@@ -40,6 +40,14 @@ struct APIClient {
         return response.calls
     }
 
+    /// 把 StoreKit 2 交易的 JWS 交给后端验证并开通，返回最新的订阅状态。
+    func syncSubscription(signedTransaction: String) async throws -> SubscriptionInfo {
+        struct Body: Encodable { let signedTransaction: String }
+        struct Response: Decodable { let subscription: SubscriptionInfo }
+        let response: Response = try await send("api/subscription-sync", method: "POST", body: Body(signedTransaction: signedTransaction))
+        return response.subscription
+    }
+
     func block(number: String) async throws {
         struct Body: Encodable { let number: String; let reason: String }
         let _: OKResponse = try await send("api/admin/blocklist", method: "POST", body: Body(number: number, reason: "app"))

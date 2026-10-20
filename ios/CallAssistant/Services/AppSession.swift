@@ -12,8 +12,12 @@ final class AppSession {
     private(set) var config: AppConfig?
     /// 当前标签页。放在这里是为了让提示条能跳到「代接设置」。
     var selectedTab: AppTab = .calls
+    /// 显示订阅页（来电助手 Pro）
+    var showSubscription = false
     var isSignedIn: Bool { serverURL != nil && authConfig != nil && tokens != nil }
     var phone: String? { tokens?.phone }
+    /// Supabase 用户 ID，购买时作为 appAccountToken 传给苹果
+    var userID: String? { tokens?.userID }
 
     private var tokens: AuthTokens?
     @ObservationIgnored private var refreshTask: Task<AuthTokens, Error>?
@@ -119,6 +123,11 @@ final class AppSession {
         keychain.delete(account: Self.tokensAccount)
         tokens = nil
         config = nil
+    }
+
+    /// 购买或恢复购买后，用后端返回的订阅状态更新界面，不用等下一次刷新。
+    func apply(subscription: SubscriptionInfo) {
+        config?.subscription = subscription
     }
 
     func refreshConfig() async {

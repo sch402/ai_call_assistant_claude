@@ -80,7 +80,7 @@ struct ForwardingView: View {
                 LabeledContent("代接号码", value: PhoneFormat.display(number))
             }
             if let subscription = session.config?.subscription, subscription.state != .active {
-                SubscriptionBanner(info: subscription)
+                SubscriptionBanner(info: subscription, onSubscribe: { session.showSubscription = true })
                     .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
             }
         } footer: {

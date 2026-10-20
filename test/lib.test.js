@@ -241,3 +241,57 @@ test('calls on the shared number are answered only for entitled, identified user
     true
   );
 });
+
+import { AppStoreError, accountTokenUser, decodeJwsPart, pinnedRootCertificate, resolveOwner, subscriptionRow } from '../lib/appstore.js';
+
+const jwsOf = (header, payload) =>
+  [header, payload].map((o) => Buffer.from(JSON.stringify(o)).toString('base64url')).join('.') + '.sig';
+
+test('App Store JWS: only a chain ending in Apple Root CA - G3 is accepted', () => {
+  assert.deepEqual(decodeJwsPart(jwsOf({ alg: 'ES256' }, { environment: 'Sandbox' }), 1), { environment: 'Sandbox' });
+  assert.throws(() => decodeJwsPart('nope', 1), AppStoreError);
+  const fake = jwsOf({ alg: 'ES256', x5c: ['bGVhZg==', 'aW50ZXI=', 'cm9vdA=='] }, {});
+  assert.throws(() => pinnedRootCertificate(fake), /不是苹果签发/);
+  assert.throws(() => pinnedRootCertificate(jwsOf({ alg: 'ES256' }, {})), /缺少证书链/);
+});
+
+test('an Apple subscription is bound to exactly one user', () => {
+  const me = '6c1f0b9e-0000-4000-8000-000000000001';
+  const other = '6c1f0b9e-0000-4000-8000-000000000002';
+  assert.equal(accountTokenUser({ appAccountToken: me.toUpperCase() }), me);
+  assert.equal(accountTokenUser({ appAccountToken: 'not-a-uuid' }), null);
+  // App 同步：自己买的、没有 appAccountToken 的（例如旧交易）都归当前用户
+  assert.deepEqual(resolveOwner({ transaction: { appAccountToken: me }, requestingUserId: me }), { userId: me, conflict: false });
+  assert.deepEqual(resolveOwner({ transaction: {}, requestingUserId: me }), { userId: me, conflict: false });
+  // 别人买的、或已经绑定给别人的：冲突
+  assert.equal(resolveOwner({ transaction: { appAccountToken: other }, requestingUserId: me }).conflict, true);
+  assert.equal(resolveOwner({ transaction: { appAccountToken: me }, boundUserId: other, requestingUserId: me }).conflict, true);
+  // 苹果通知：已绑定的优先，其次 appAccountToken
+  assert.equal(resolveOwner({ transaction: { appAccountToken: me }, boundUserId: other }).userId, other);
+  assert.equal(resolveOwner({ transaction: { appAccountToken: me } }).userId, me);
+  assert.equal(resolveOwner({ transaction: {} }).userId, null);
+});
+
+test('Apple transactions become subscription rows; stale notifications are ignored', () => {
+  const tx = {
+    originalTransactionId: '2000000123',
+    productId: 'com.everyone.callassistant.pro.monthly',
+    expiresDate: Date.parse('2026-11-20T00:00:00Z'),
+    signedDate: Date.parse('2026-10-20T00:00:00Z'),
+    environment: 'Sandbox',
+  };
+  const row = subscriptionRow({ userId: 'u', transaction: tx, renewal: { autoRenewStatus: 1 }, notificationType: 'SUBSCRIBED' });
+  assert.equal(row.status, 'active');
+  assert.equal(row.expires_at, '2026-11-20T00:00:00.000Z');
+  assert.equal(row.auto_renew, true);
+  assert.equal(row.source, 'app_store');
+  // 退款
+  assert.equal(subscriptionRow({ userId: 'u', transaction: { ...tx, revocationDate: Date.now() }, notificationType: 'REFUND' }).status, 'revoked');
+  // 比现有记录旧的通知不覆盖
+  const existing = { source: 'app_store', original_transaction_id: '2000000123', last_signed_at: '2026-10-21T00:00:00+00:00' };
+  assert.equal(subscriptionRow({ userId: 'u', transaction: tx, existing }), null);
+  // 没有续费信息时保留原来的 auto_renew
+  assert.equal(subscriptionRow({ userId: 'u', transaction: tx, existing: { auto_renew: false } }).auto_renew, false);
+  // 不是自动续期订阅
+  assert.equal(subscriptionRow({ userId: 'u', transaction: { originalTransactionId: '1' } }), null);
+});

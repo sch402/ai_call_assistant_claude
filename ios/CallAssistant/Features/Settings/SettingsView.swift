@@ -4,6 +4,15 @@ struct SettingsView: View {
     @Environment(AppSession.self) private var session
     @State private var confirmSignOut = false
 
+    private var membershipStatus: String {
+        switch session.config?.subscription?.state {
+        case .active: return String(localized: "已订阅")
+        case .grace: return String(localized: "待续费")
+        case .expired: return String(localized: "已过期")
+        case .none?, nil: return String(localized: "未开通")
+        }
+    }
+
     private var version: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "0.1.0"
@@ -26,22 +35,23 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
-                    HStack(spacing: 14) {
-                        Image(systemName: "sparkles")
-                            .font(.title2)
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 36)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("来电助手 Pro").font(.headline)
-                            Text("更多通话时长、自定义声音、来电实时提醒").font(.caption).foregroundStyle(.secondary)
+                // 机主始终有效，不需要订阅
+                if session.config?.isOwner != true {
+                    Section("会员") {
+                        Button { session.showSubscription = true } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: "sparkles")
+                                    .font(.title2)
+                                    .foregroundStyle(Color.accentColor)
+                                    .frame(width: 36)
+                                Text("来电助手 Pro").font(.headline).foregroundStyle(Color.primary)
+                                Spacer()
+                                Text(membershipStatus).font(.subheadline).foregroundStyle(.secondary)
+                                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 4)
                         }
-                        Spacer()
-                        Text("即将推出").font(.caption).foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text("会员")
                 }
 
                 Section("关于") {

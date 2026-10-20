@@ -8,7 +8,7 @@ struct AppConfig: Decodable, Equatable {
     let phone: String?
     /// 是否机主（OWNER_PHONE_NUMBER）。原型阶段只有机主能拉黑号码。
     let isOwner: Bool?
-    let subscription: SubscriptionInfo?
+    var subscription: SubscriptionInfo?
 }
 
 /// 订阅状态（后端 lib/entitlement.js）。到期后宽限期内照常代接，之后来电直接拒接。
@@ -20,6 +20,8 @@ struct SubscriptionInfo: Decodable, Equatable {
     let state: State
     let expiresAt: Date?
     let graceEndsAt: Date?
+    /// 苹果内购：是否还开着自动续费（nil = 未知或手动开通）
+    let autoRenew: Bool?
 
     /// AI 是否还在代接
     var isAnswering: Bool { state == .active || state == .grace }

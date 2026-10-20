@@ -19,6 +19,8 @@ settings:
     DEVELOPMENT_TEAM: 3YDFH675B7
     # 后端（Vercel）域名，不带 https://。会写进 Info.plist，App 不再让用户填写。
     API_HOST: aicallassistantclaude.vercel.app
+    # App Store Connect 里创建的自动续期订阅产品 ID，逗号分隔，按这个顺序展示在订阅页
+    IAP_PRODUCT_IDS: com.everyone.callassistant.pro.monthly,com.everyone.callassistant.pro.yearly
 
 targets:
   CallAssistant:
@@ -38,6 +40,7 @@ targets:
       properties:
         CFBundleDisplayName: 来电助手
         APIHost: $(API_HOST)
+        IAPProductIDs: $(IAP_PRODUCT_IDS)
         CFBundleDevelopmentRegion: zh-Hans
         CFBundleLocalizations: [zh-Hans, en]
         UILaunchScreen:

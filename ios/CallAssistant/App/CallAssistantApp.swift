@@ -3,11 +3,15 @@ import SwiftUI
 @main
 struct CallAssistantApp: App {
     @State private var session = AppSession()
+    @State private var store = Store()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(session)
+                .environment(store)
+                // 尽早开始监听：续费、其他设备购买、家长批准后的交易都从这里来
+                .task { store.observeTransactionUpdates(session: session) }
         }
     }
 }
@@ -49,5 +53,6 @@ struct MainTabView: View {
                 .tag(AppTab.settings)
         }
         .task { await session.refreshConfig() }
+        .sheet(isPresented: $session.showSubscription) { SubscriptionView() }
     }
 }

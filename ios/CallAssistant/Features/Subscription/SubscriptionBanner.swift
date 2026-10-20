@@ -4,6 +4,8 @@ import SwiftUI
 /// 我们没法远程取消用户手机上的呼叫转移，所以过期后要提醒用户续费，或者自己关闭转移。
 struct SubscriptionBanner: View {
     let info: SubscriptionInfo
+    /// 打开订阅页
+    var onSubscribe: (() -> Void)?
     /// 跳到「代接设置」关闭呼叫转移
     var onCancelForwarding: (() -> Void)?
 
@@ -16,11 +18,16 @@ struct SubscriptionBanner: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.subheadline.weight(.semibold))
                     Text(message).font(.caption).foregroundStyle(.secondary)
-                    if let onCancelForwarding, !info.isAnswering {
-                        Button("关闭呼叫转移", action: onCancelForwarding)
-                            .font(.caption.weight(.semibold))
-                            .padding(.top, 2)
+                    HStack(spacing: 16) {
+                        if let onSubscribe {
+                            Button(info.state == .none ? "开通" : "续费", action: onSubscribe)
+                        }
+                        if let onCancelForwarding, !info.isAnswering {
+                            Button("关闭呼叫转移", action: onCancelForwarding)
+                        }
                     }
+                    .font(.caption.weight(.semibold))
+                    .padding(.top, 2)
                 }
                 Spacer(minLength: 0)
             }

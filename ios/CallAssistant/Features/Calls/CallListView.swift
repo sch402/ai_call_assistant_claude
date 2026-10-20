@@ -14,7 +14,11 @@ struct CallListView: View {
                 .safeAreaInset(edge: .top, spacing: 0) {
                     VStack(spacing: 8) {
                         if let subscription = session.config?.subscription {
-                            SubscriptionBanner(info: subscription) { session.selectedTab = .forwarding }
+                            SubscriptionBanner(
+                                info: subscription,
+                                onSubscribe: { session.showSubscription = true },
+                                onCancelForwarding: { session.selectedTab = .forwarding }
+                            )
                         }
                         Picker("筛选", selection: $store.filter) {
                             ForEach(CallFilter.allCases) { Text($0.label).tag($0) }

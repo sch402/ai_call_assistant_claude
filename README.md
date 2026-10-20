@@ -112,6 +112,10 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `lib/assistant.js` | 助理的话术、安全规则、音色、摘要和结构化字段定义 |
 | `api/app-config.js` | 给 iOS App 的基础配置（代接号码、机主名字、登录手机号） |
 | `api/auth-config.js` | 给 iOS App 登录用的 Supabase 地址和 anon key（公开） |
+| `api/subscription-sync.js` | App 购买或恢复购买后提交交易，验证苹果签名后立即开通 |
+| `api/appstore-notifications.js` | 苹果服务器通知（续费、过期、退款），更新订阅状态 |
+| `lib/appstore.js` | 苹果 JWS 签名校验（固定 Apple Root CA - G3 指纹）与交易 → 订阅记录的换算 |
+| `public/privacy.html` | 隐私政策（草稿，订阅页链接到这里） |
 | `lib/entitlement.js` | 订阅状态（3 天宽限期）与来电接听 / 拒接判定 |
 | `lib/auth.js` | 接口鉴权：`DASHBOARD_TOKEN`（网页面板）或 Supabase 登录令牌（App 用户） |
 | `public/index.html` | 网页面板 |
@@ -144,7 +148,7 @@ App 里每位用户只看到归属给自己的来电，网页面板能看到全�
 - 查询用户表或订阅表出错时，按可以接听处理，避免因数据库故障漏接付费用户。
 - 没带转移来源的来电无法分辨是谁的，默认拒接。运营商不带转移来源的用户，无法使用公用号码。`ACCEPT_UNATTRIBUTED_CALLS=true` 可以恢复旧原型「全部接听、算机主的」的行为，但这样过期用户也能继续免费使用。
 
-**手动开通订阅**（接入苹果内购之前）：用户先在 App 里登录一次，让 `profiles` 表里有他的手机号，然后在 Supabase SQL Editor 运行：
+**手动开通订阅**（例如给朋友免费试用；用户通过苹果内购开通的不用管）：用户先在 App 里登录一次，让 `profiles` 表里有他的手机号，然后在 Supabase SQL Editor 运行：
 
 ```sql
 -- 开通或续费到某个日期；expires_at 写 null 表示不过期
@@ -158,6 +162,37 @@ update subscriptions set status = 'revoked', updated_at = now()
 where user_id = (select user_id from profiles where phone = '+61412345678');
 ```
 
+## 苹果内购
+
+订阅用 StoreKit 2 自动续期订阅，状态以服务端 `subscriptions` 表为准：
+
+```
+App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹果签名 → 写入 subscriptions → App 才 finish 交易
+之后续费 / 过期 / 退款 → 苹果服务器通知 → /api/appstore-notifications → 更新 subscriptions
+```
+
+- 一个苹果订阅只能绑定一个手机号账户。用同一个 Apple ID 在另一个账户「恢复购买」会提示已绑定，防止一份订阅给多个号码用。
+- 苹果的通知可能乱序到达，比现有记录旧的通知会被忽略。退款（`REFUND` / `REVOKE`）立即停用，没有宽限期。
+- 到期后的 3 天宽限期由我们自己的规则提供。App Store Connect 里的「账单宽限期」（Billing Grace Period）建议**不要开启**，否则会和这 3 天叠加。
+
+### 上线前在 App Store Connect 里要做的
+
+1. **协议、税务和银行业务**：签署「付费 App 协议」，填好银行账户和税务信息。不签的话，App 里拿不到任何订阅产品。
+2. **App › 订阅**：新建订阅群组（例如「来电助手 Pro」），在群组里创建产品，产品 ID 要和 `ios/project.yml` 的 `IAP_PRODUCT_IDS` 一致：
+   - `com.everyone.callassistant.pro.monthly`（1 个月）
+   - `com.everyone.callassistant.pro.yearly`（1 年）
+
+   每个产品都要填价格、显示名称、描述和审核截图。可以在产品里加「推介促销优惠」做免费试用，订阅页会自动显示。
+3. **App 信息 › App Store 服务器通知**：正式环境和沙盒环境的网址都填 `https://<你的域名>/api/appstore-notifications`，版本选 **Version 2**。填好后点「发送测试通知」，Vercel 日志里出现「苹果通知 TEST」就说明通了。
+4. **App 信息 › 常规信息 › Apple ID**：把这串数字填进 Vercel 的 `APPLE_APP_APPLE_ID`。
+5. **App 隐私**：隐私政策网址填 `https://<你的域名>/privacy.html`（先把页面里的 `[联系邮箱]` 换掉）。
+
+### 测试
+
+- 在 **用户和访问 › 沙盒** 里创建一个沙盒测试账号，然后在 iPhone 的 **设置 › App Store › 沙盒账户** 登录它。用 Xcode 装到手机上购买，走的就是沙盒环境，不扣钱。
+- 沙盒里订阅会加速：默认 1 个月的订阅大约 5 分钟续费一次（续费速度可以在沙盒测试账号设置里调整）。可以用来测续费、过期和宽限期。
+- TestFlight 的购买也是沙盒，同样不扣钱。
+
 ## 公用号码的并发
 
 一个 Twilio 号码可以同时接很多通电话，并发数是按账户算的，不按号码算：
@@ -170,7 +205,8 @@ where user_id = (select user_id from profiles where phone = '+61412345678');
 ## 已知限制
 
 - 所有用户共用一个 Twilio 号码。运营商不带转移来源的用户，来电会被拒接，以后需要用号码池给他分配独立号码。
-- 订阅暂时在数据库里手动维护，苹果内购（StoreKit 2 + App Store Server Notifications）还没接入。过期用户只能在打开 App 时看到提醒，推送还没做。
+- 过期用户只能在打开 App 时看到提醒，推送还没做。
+- App 里还不能删除账户（苹果审核要求有这个功能），目前只能联系我们删除。
 - 黑名单对所有用户生效，所以只有机主和网页面板能拉黑；按用户分开的黑名单留到 MVP。呼叫转移自测也仍然只测机主号码。
 - 手机号就是账户。号码换了或被运营商回收，需要在 Supabase 后台处理对应的用户。
 - Vapi 的服务器在美国，澳洲来电每轮对话会多一段跨太平洋往返。原型阶段先实测延迟。
