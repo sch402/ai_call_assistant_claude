@@ -275,7 +275,7 @@ test('an Apple subscription is bound to exactly one user', () => {
 test('Apple transactions become subscription rows; stale notifications are ignored', () => {
   const tx = {
     originalTransactionId: '2000000123',
-    productId: 'com.everyone.callassistant.pro.monthly',
+    productId: 'com.homeau.callassistant.pro.monthly',
     expiresDate: Date.parse('2026-11-20T00:00:00Z'),
     signedDate: Date.parse('2026-10-20T00:00:00Z'),
     environment: 'Sandbox',

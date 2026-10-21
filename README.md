@@ -180,8 +180,8 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 
 1. **协议、税务和银行业务**：签署「付费 App 协议」，填好银行账户和税务信息。不签的话，App 里拿不到任何订阅产品。
 2. **App › 订阅**：新建订阅群组（例如「来电助手 Pro」），在群组里创建产品，产品 ID 要和 `ios/project.yml` 的 `IAP_PRODUCT_IDS` 一致：
-   - `com.everyone.callassistant.pro.monthly`（1 个月）
-   - `com.everyone.callassistant.pro.yearly`（1 年）
+   - `com.homeau.callassistant.pro.monthly`（1 个月）
+   - `com.homeau.callassistant.pro.yearly`（1 年）
 
    每个产品都要填价格、显示名称、描述和审核截图。可以在产品里加「推介促销优惠」做免费试用，订阅页会自动显示。
 3. **App 信息 › App Store 服务器通知**：正式环境和沙盒环境的网址都填 `https://<你的域名>/api/appstore-notifications`，版本选 **Version 2**。填好后点「发送测试通知」，Vercel 日志里出现「苹果通知 TEST」就说明通了。
