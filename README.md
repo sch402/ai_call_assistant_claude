@@ -184,7 +184,7 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
    - `com.homeau.callassistant.pro.yearly`（1 年）
 
    每个产品都要填价格、显示名称、描述和审核截图。可以在产品里加「推介促销优惠」做免费试用，订阅页会自动显示。
-3. **App 信息 › App Store 服务器通知**：正式环境和沙盒环境的网址都填 `https://<你的域名>/api/appstore-notifications`，版本选 **Version 2**。填好后点「发送测试通知」，Vercel 日志里出现「苹果通知 TEST」就说明通了。
+3. **App 信息 › App Store 服务器通知**：正式环境和沙盒环境的网址都填 `https://<你的域名>/api/appstore-notifications`，版本选 **Version 2**。网页上没有测试按钮：用沙盒账号买一次订阅，Vercel 日志里出现「苹果通知 SUBSCRIBED」就说明通了。
 4. **App 信息 › 常规信息 › Apple ID**：把这串数字填进 Vercel 的 `APPLE_APP_APPLE_ID`。
 5. **App 隐私**：隐私政策网址填 `https://<你的域名>/privacy.html`（先把页面里的 `[联系邮箱]` 换掉）。
 
