@@ -287,6 +287,11 @@ test('Apple transactions become subscription rows; stale notifications are ignor
   assert.equal(row.source, 'app_store');
   // 退款
   assert.equal(subscriptionRow({ userId: 'u', transaction: { ...tx, revocationDate: Date.now() }, notificationType: 'REFUND' }).status, 'revoked');
+  // 升级后被替换掉的旧交易：不当作退款，也不覆盖新状态
+  assert.equal(
+    subscriptionRow({ userId: 'u', transaction: { ...tx, isUpgraded: true, revocationDate: Date.now() }, notificationType: 'DID_CHANGE_RENEWAL_PREF' }),
+    null
+  );
   // 比现有记录旧的通知不覆盖
   const existing = { source: 'app_store', original_transaction_id: '2000000123', last_signed_at: '2026-10-21T00:00:00+00:00' };
   assert.equal(subscriptionRow({ userId: 'u', transaction: tx, existing }), null);
