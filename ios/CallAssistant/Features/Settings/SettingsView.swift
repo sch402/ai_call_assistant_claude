@@ -62,6 +62,11 @@ struct SettingsView: View {
                 Section {
                     Button("退出登录", role: .destructive) { confirmSignOut = true }
                 }
+
+                Section {
+                    NavigationLink("删除账户") { DeleteAccountView() }
+                        .foregroundStyle(.red)
+                }
             }
             .navigationTitle("我的")
             .task { await session.refreshConfig() }

@@ -48,6 +48,11 @@ struct APIClient {
         return response.subscription
     }
 
+    /// 永久删除账户和来电记录
+    func deleteAccount() async throws {
+        let _: OKResponse = try await send("api/account", method: "DELETE", body: Optional<String>.none)
+    }
+
     func block(number: String) async throws {
         struct Body: Encodable { let number: String; let reason: String }
         let _: OKResponse = try await send("api/admin/blocklist", method: "POST", body: Body(number: number, reason: "app"))

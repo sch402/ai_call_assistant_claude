@@ -85,6 +85,14 @@ final class AppSession {
         await refreshConfig()
     }
 
+    /// 删除账户。服务端删除成功后清掉本地凭证（登录用户已经不存在，不用再调 Supabase 退出）。
+    func deleteAccount() async throws {
+        guard let client else { throw AuthError.sessionExpired }
+        try await client.deleteAccount()
+        clearTokens()
+        selectedTab = .calls
+    }
+
     func signOut() async {
         if let authConfig, let tokens {
             await SupabaseAuth(config: authConfig).signOut(tokens)
