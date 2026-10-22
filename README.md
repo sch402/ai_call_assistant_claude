@@ -131,7 +131,7 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 
 一通转移来电归哪位用户，只看运营商带来的转移来源（Twilio 的 `ForwardedFrom`）：
 
-1. 按 `CalledCountry`（接收转移的 Twilio 号码所在国家）把它补全成 E.164，例如澳洲运营商给的 `+478558140` 补成 `+61478558140`。不用 `FromCountry`，那是原始来电方的国家。
+1. 按 `CalledCountry`（接收转移的 Twilio 号码所在国家）把它补全成 E.164，例如澳洲运营商给的 `+4*******0` 补成 `+614*******0`。不用 `FromCountry`，那是原始来电方的国家。
 2. 补全后必须与某位用户的登录手机号（`profiles.phone`，短信验证过）完全一致才归属，写进 `calls.user_id`。`profiles.phone` 有唯一约束，所以最多只匹配一位用户。补全不了（国家不在 `lib/phone.js` 的规则表里、长度不对）就不归属。
 3. 原始参数完整保存在 `calls.raw_params`，便于核对。
 
