@@ -63,7 +63,13 @@ struct SettingsView: View {
 
                 Section("关于") {
                     LabeledContent("版本", value: version)
-                    NavigationLink("隐私与条款") { PrivacyView() }
+                    // 直接显示网站上的最新版本（public/privacy.html、public/terms.html），不在 App 里另写一份
+                    if let privacy = LegalLinks.privacy(server: session.serverURL) {
+                        NavigationLink("隐私政策") { WebPageView(title: "隐私政策", url: privacy) }
+                    }
+                    if let terms = LegalLinks.terms(server: session.serverURL) {
+                        NavigationLink("用户协议") { WebPageView(title: "用户协议", url: terms) }
+                    }
                 }
 
                 Section {
@@ -81,30 +87,5 @@ struct SettingsView: View {
                 Button("退出登录", role: .destructive) { Task { await session.signOut() } }
             }
         }
-    }
-}
-
-private struct PrivacyView: View {
-    @Environment(AppSession.self) private var session
-
-    var body: some View {
-        List {
-            Section {
-                Text("AI 接听时只说你设置的称呼，不会透露你的姓、住址、证件号、账户等任何个人信息，也不会替你做任何承诺。")
-                Text("通话不保存录音，只保存文字转写和摘要，用来在 App 里展示给你。")
-                Text("手机号只用于登录，以及确认转过来的电话是你的。我们不出售你的数据，也不用于广告。")
-                Text("你可以随时在「我的 › 删除账户」里删除账户和全部来电记录。")
-            }
-            Section {
-                if let privacy = LegalLinks.privacy(server: session.serverURL) {
-                    Link("隐私政策", destination: privacy)
-                }
-                if let terms = LegalLinks.terms(server: session.serverURL) {
-                    Link("用户协议", destination: terms)
-                }
-            }
-        }
-        .navigationTitle("隐私与条款")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
