@@ -45,7 +45,7 @@ open CallAssistant.xcodeproj
 下面几个接口需要 `Authorization: Bearer <Supabase 访问令牌>`，后端用它确认用户和手机号：
 
 - `GET /api/app-config`：代接号码、登录手机号、AI 助手设置、订阅状态
-- `PATCH /api/profile`：修改称呼、男声 / 女声、音色
+- `PATCH /api/account`：修改称呼、男声 / 女声、音色（`DELETE` 同一网址是删除账户）
 - `GET /api/calls`：归属给当前用户的来电记录
 - `POST /api/admin/blocklist`：拉黑号码（只影响打给自己的电话）
 

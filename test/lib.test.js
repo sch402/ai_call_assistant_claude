@@ -333,3 +333,23 @@ test('the user id SIP header is found anywhere in a Vapi message', () => {
   assert.equal(findHeaderValue({ call: {} }, 'x-user_id'), null);
   assert.equal(findHeaderValue(null, 'x-user_id'), null);
 });
+
+import { readdirSync } from 'node:fs';
+import adminHandler from '../api/admin/[action].js';
+
+test('stays within the Vercel Hobby limit of 12 serverless functions per deployment', () => {
+  const count = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).reduce(
+      (n, e) => n + (e.isDirectory() ? count(`${dir}/${e.name}`) : e.name.endsWith('.js') ? 1 : 0),
+      0
+    );
+  const total = count(new URL('../api', import.meta.url).pathname);
+  assert.ok(total <= 12, `api/ 下有 ${total} 个函数，超过 Vercel Hobby 的 12 个上限会导致部署失败；请把新逻辑合并进已有接口`);
+});
+
+test('admin dispatcher returns 404 for unknown actions', async () => {
+  let status;
+  const res = { setHeader() {}, status(code) { status = code; return this; }, send() {} };
+  await adminHandler({ query: { action: 'nope' }, headers: {} }, res);
+  assert.equal(status, 404);
+});

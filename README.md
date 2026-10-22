@@ -104,17 +104,17 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `api/twilio-voice.js` | Twilio 来电 webhook：校验签名、记录转移来源、黑名单拒接、桥接到 Vapi |
 | `api/vapi-webhook.js` | Vapi 通话结束报告：写入转写、摘要和结构化字段 |
 | `api/calls.js` | 面板读取通话记录 |
-| `api/admin/setup.js` | 一键创建或同步 Vapi 助理、SIP 接入号和 Twilio webhook |
-| `api/admin/check-forwarding.js` | 呼叫转移自测：拨打网页面板里填的手机号 |
+| `lib/admin/setup.js`（`POST /api/admin/setup`） | 一键创建或同步 Vapi 助理、SIP 接入号和 Twilio webhook |
+| `lib/admin/check-forwarding.js`（`POST /api/admin/check-forwarding`） | 呼叫转移自测：拨打网页面板里填的手机号 |
 | `api/forwarding-status.js` | 记录自测外呼的最终状态（无人接、拒接、被接起等），用于诊断 |
 | `lib/forwarding.js` | 自测结果判定与诊断文字 |
-| `api/admin/blocklist.js` | 拉黑或取消拉黑号码 |
+| `lib/admin/blocklist.js`（`POST /api/admin/blocklist`） | 拉黑或取消拉黑号码 |
 | `lib/assistant.js` | 助理的话术、安全规则、音色表（性别 × 音色）、摘要和结构化字段定义 |
 | `lib/profile.js` | 用户的 AI 助手设置：校验称呼、性别、音色，生成这位用户的助理配置 |
-| `api/profile.js` | App 修改称呼、男声 / 女声、音色 |
 | `api/app-config.js` | 给 iOS App 的基础配置（代接号码、登录手机号、AI 助手设置、订阅状态） |
 | `api/auth-config.js` | 给 iOS App 登录用的 Supabase 地址和 anon key（公开） |
-| `api/account.js` | 删除账户：删除来电记录和登录用户（手机号、订阅记录级联删除） |
+| `api/account.js` | `PATCH` 修改 AI 助手设置（称呼、男声 / 女声、音色）；`DELETE` 删除账户（来电记录和登录用户，手机号、订阅记录级联删除） |
+| `api/admin/[action].js` | 三个管理接口合并成的一个函数，按网址分发到 `lib/admin/` |
 | `api/subscription-sync.js` | App 购买或恢复购买后提交交易，验证苹果签名后立即开通 |
 | `api/appstore-notifications.js` | 苹果服务器通知（续费、过期、退款），更新订阅状态 |
 | `lib/appstore.js` | 苹果 JWS 签名校验（固定 Apple Root CA - G3 指纹）与交易 → 订阅记录的换算 |
@@ -240,6 +240,10 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 - 接通后 AI 不先说话，等对方开口；对方 3 秒没声音只说一句 "Hello?"。对方正常自我介绍后，AI 说 "this is <用户称呼>'s AI assistant"；开场像银行、警察、移民局等高风险来电时，只说 "This is an AI phone assistant"（不带名字）；对方不自我介绍时先问是谁，弄清对方身份后再按前两种之一说明；明显诈骗直接挂断，不说任何话。称呼和声音由用户在 App 里设置。
 - 默认不保存录音，只保存转写；不做通话记录告知。如果以后面向其他用户推出，需要请律师重新评估。
 - Vapi 回传的报告里如果没有带回 Twilio 的 CallSid，会退而按「来电号码 + 时间」匹配，面板上会标出来。
+
+## Vercel 函数数量
+
+Vercel Hobby 计划每次部署最多 **12 个函数**（`api/` 下每个 `.js` 文件算一个），超过时部署会直接失败，线上仍是上一个版本。所以管理接口合并在 `api/admin/[action].js`，修改设置和删除账户合并在 `api/account.js`。`npm test` 里有一条测试会在超过 12 个时报错。新增接口时优先并入已有文件。
 
 ## 本地运行测试
 

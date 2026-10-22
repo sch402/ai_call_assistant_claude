@@ -52,7 +52,7 @@ struct APIClient {
     func updateProfile(name: String? = nil, gender: VoiceGender? = nil, voiceStyle: VoiceStyle? = nil) async throws -> AssistantProfile {
         struct Body: Encodable { let name: String?; let gender: VoiceGender?; let voiceStyle: VoiceStyle? }
         struct Response: Decodable { let profile: AssistantProfile }
-        let response: Response = try await send("api/profile", method: "PATCH", body: Body(name: name, gender: gender, voiceStyle: voiceStyle))
+        let response: Response = try await send("api/account", method: "PATCH", body: Body(name: name, gender: gender, voiceStyle: voiceStyle))
         return response.profile
     }
 
