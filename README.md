@@ -222,6 +222,15 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 - 沙盒里订阅会加速：默认 1 个月的订阅大约 5 分钟续费一次（续费速度可以在沙盒测试账号设置里调整）。可以用来测续费、过期和宽限期。
 - TestFlight 的购买也是沙盒，同样不扣钱。
 
+## 防止刷验证码
+
+每条登录短信都由 Twilio Verify 收费。App 里有基本限制：只接受澳洲手机号（+61 4…）、必须勾选同意协议、每次发送后冷却 60 秒、同一台手机每小时最多 5 次（`ios/CallAssistant/Services/OTPThrottle.swift`）。这些只能防误触和连点：App 是直接调用 Supabase 发验证码的，有心人可以绕过 App。真正控制费用要在服务端配置，都不影响正常用户：
+
+1. **Twilio › Verify › Settings › Geo permissions**：只勾选 **Australia**。这是防「短信轰炸 / 国际高价短信诈骗（SMS pumping）」最有效的一步，别的国家的号码根本发不出去。
+2. **Twilio › Verify › Settings › Fraud Guard**：保持开启（建议选 Standard 或更严格），自动拦截可疑的批量请求。
+3. **Supabase › Authentication › Rate Limits**：把「每小时发送短信数」设成一个和用户量相当的上限（例如开始时 30），超过后新的验证码请求会被拒绝，最坏情况下的费用就封顶了。用户多了再调高。
+4. 以后如果仍有人恶意刷，可以开启 **Supabase › Authentication › Attack Protection › CAPTCHA**（Cloudflare Turnstile），App 端需要配合加一个验证组件。
+
 ## 公用号码的并发
 
 一个 Twilio 号码可以同时接很多通电话，并发数是按账户算的，不按号码算：

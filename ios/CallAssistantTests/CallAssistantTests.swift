@@ -209,3 +209,34 @@ final class TwilioNumberLabelTests: XCTestCase {
         XCTAssertEqual(try config(state: "expired").twilioNumberLabel, "尚未开通")
     }
 }
+
+final class LoginInputTests: XCTestCase {
+    func testAustralianInputFormatting() {
+        XCTAssertEqual(PhoneNumber.formatAustralianInput("0412345678"), "0412 345 678")
+        XCTAssertEqual(PhoneNumber.formatAustralianInput("412345678"), "412 345 678")
+        XCTAssertEqual(PhoneNumber.formatAustralianInput("+61478558140"), "478 558 140") // 键盘自动填入
+        XCTAssertEqual(PhoneNumber.formatAustralianInput("41234"), "412 34")
+        XCTAssertEqual(PhoneNumber.formatAustralianInput("04123456789999"), "0412 345 678")
+    }
+
+    func testOnlyAustralianMobilesCanSignIn() {
+        XCTAssertTrue(PhoneNumber.isAustralianMobile(PhoneNumber.e164("478 558 140")))
+        XCTAssertTrue(PhoneNumber.isAustralianMobile(PhoneNumber.e164("0412 345 678")))
+        XCTAssertFalse(PhoneNumber.isAustralianMobile(PhoneNumber.e164("02 5849 6666"))) // 座机
+        XCTAssertFalse(PhoneNumber.isAustralianMobile(PhoneNumber.e164("+86 138 0013 8000")))
+        XCTAssertFalse(PhoneNumber.isAustralianMobile(nil))
+    }
+
+    func testOTPThrottle() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertEqual(OTPThrottle.waitTime(history: [], now: now), 0)
+        // 刚发过：冷却 60 秒
+        XCTAssertEqual(OTPThrottle.waitTime(history: [now.addingTimeInterval(-20)], now: now), 40)
+        XCTAssertEqual(OTPThrottle.waitTime(history: [now.addingTimeInterval(-90)], now: now), 0)
+        // 一小时内已发 5 次：等最早那次满一小时
+        let five = (1...5).map { now.addingTimeInterval(TimeInterval(-600 * $0)) }
+        XCTAssertEqual(OTPThrottle.waitTime(history: five, now: now), 600)
+        // 一小时前的记录不算
+        XCTAssertEqual(OTPThrottle.waitTime(history: [now.addingTimeInterval(-4000)], now: now), 0)
+    }
+}

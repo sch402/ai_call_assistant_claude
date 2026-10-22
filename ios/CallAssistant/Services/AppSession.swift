@@ -64,7 +64,7 @@ final class AppSession {
     /// 第一步：取 Supabase 配置（/api/auth-config），再让 Supabase 发验证码。返回整理后的 E.164 号码。
     func sendCode(phoneText: String) async throws -> String {
         guard let serverURL else { throw APIError.invalidServerURL }
-        guard let phone = PhoneNumber.e164(phoneText) else { throw AuthError.invalidPhone }
+        guard let phone = PhoneNumber.e164(phoneText), PhoneNumber.isAustralianMobile(phone) else { throw AuthError.invalidPhone }
         let fetched = try await APIClient.authConfig(baseURL: serverURL)
         try await SupabaseAuth(config: fetched).sendCode(phone: phone)
         authConfig = fetched

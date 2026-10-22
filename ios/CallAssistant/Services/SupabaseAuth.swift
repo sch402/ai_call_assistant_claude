@@ -31,7 +31,7 @@ enum AuthError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidPhone: return String(localized: "手机号格式不正确。澳洲号码可以直接填 04 开头的 10 位号码，其他国家请带上 + 和国家码。")
+        case .invalidPhone: return String(localized: "请输入澳洲手机号，例如 0412 345 678。")
         case .invalidCode: return String(localized: "验证码不正确或已过期，请重新获取。")
         case .rateLimited: return String(localized: "请求太频繁，请稍后再试。")
         case .sessionExpired: return String(localized: "登录已过期，请重新登录。")
@@ -170,6 +170,30 @@ enum PhoneNumber {
         guard (8...15).contains(candidate.count), !candidate.hasPrefix("0") else { return nil }
         if candidate.hasPrefix(defaultCountryCode), candidate.count != 11 { return nil }
         return "+" + candidate
+    }
+}
+
+extension PhoneNumber {
+    /// 登录只接受澳洲手机号（+61 4xx xxx xxx）：服务用的是澳洲号码，也避免把验证码发到海外号码产生高额短信费。
+    static func isAustralianMobile(_ e164: String?) -> Bool {
+        guard let e164 else { return false }
+        return e164.hasPrefix("+614") && e164.count == 12
+    }
+
+    /// 输入框里的显示格式：412 345 678（或 0412 345 678）。键盘自动填入的 +61 412 345 678 会去掉国家码。
+    static func formatAustralianInput(_ text: String) -> String {
+        var digits = text.filter(\.isASCIIDigit)
+        if digits.hasPrefix("61"), digits.count >= 11 { digits.removeFirst(2) }
+        let maxLength = digits.hasPrefix("0") ? 10 : 9
+        digits = String(digits.prefix(maxLength))
+        let groups = digits.hasPrefix("0") ? [4, 3, 3] : [3, 3, 3]
+        var parts: [String] = []
+        var rest = Substring(digits)
+        for size in groups where !rest.isEmpty {
+            parts.append(String(rest.prefix(size)))
+            rest = rest.dropFirst(size)
+        }
+        return parts.joined(separator: " ")
     }
 }
 
