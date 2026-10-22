@@ -353,3 +353,32 @@ test('admin dispatcher returns 404 for unknown actions', async () => {
   await adminHandler({ query: { action: 'nope' }, headers: {} }, res);
   assert.equal(status, 404);
 });
+
+import { buildOverview } from '../lib/admin/overview.js';
+
+test('admin overview joins users, subscriptions and recent calls', () => {
+  const now = Date.parse('2026-10-22T00:00:00Z');
+  const day = (d) => new Date(now - d * 86400000).toISOString();
+  const { stats, users, subscriptions } = buildOverview({
+    now,
+    profiles: [
+      { user_id: 'a', phone: '+61400000001', display_name: 'Amy', gender: 'female', created_at: day(2) },
+      { user_id: 'b', phone: '+61400000002', display_name: null, gender: null, created_at: day(20) },
+    ],
+    subscriptions: [{ user_id: 'a', plan: 'pro', status: 'active', expires_at: null, updated_at: day(1) }],
+    calls: [
+      { user_id: 'a', status: 'completed', created_at: day(1) },
+      { user_id: 'a', status: 'blocked', created_at: day(10) },
+      { user_id: 'b', status: 'unpaid', created_at: day(3) },
+      { user_id: null, status: 'rejected', created_at: day(4) },
+    ],
+  });
+  assert.deepEqual(stats, { users: 2, new_users_7d: 1, onboarded: 1, paying: 1, calls_7d: 3, calls_30d: 4, rejected_30d: 3 });
+  const amy = users.find((u) => u.user_id === 'a');
+  assert.equal(amy.subscription, 'active');
+  assert.equal(amy.calls_30d, 2);
+  assert.equal(amy.rejected_30d, 1);
+  assert.equal(amy.last_call_at, day(1));
+  assert.equal(users.find((u) => u.user_id === 'b').subscription, 'none');
+  assert.equal(subscriptions[0].phone, '+61400000001');
+});

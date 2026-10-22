@@ -2,13 +2,15 @@
 //   POST /api/admin/setup             同步配置到 Vapi
 //   POST /api/admin/check-forwarding  呼叫转移自测
 //   POST /api/admin/blocklist         拉黑 / 取消拉黑（App 用户也用这个）
+//   GET  /api/admin/overview          后台概览：用户、订阅、通话统计
 // 具体逻辑在 lib/admin/ 下，各自做鉴权。
 import blocklist from '../../lib/admin/blocklist.js';
 import checkForwarding from '../../lib/admin/check-forwarding.js';
+import overview from '../../lib/admin/overview.js';
 import setup from '../../lib/admin/setup.js';
 import { sendJson } from '../../lib/http.js';
 
-const HANDLERS = { blocklist, 'check-forwarding': checkForwarding, setup };
+const HANDLERS = { blocklist, 'check-forwarding': checkForwarding, overview, setup };
 
 export default async function handler(req, res) {
   const run = HANDLERS[req.query?.action];

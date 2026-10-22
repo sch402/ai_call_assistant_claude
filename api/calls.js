@@ -8,6 +8,7 @@ import { summarizeTests } from '../lib/forwarding.js';
 const FIELDS = [
   'id',
   'created_at',
+  'user_id',
   'call_sid',
   'from_number',
   'forwarded_from',

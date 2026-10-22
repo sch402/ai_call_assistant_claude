@@ -1,225 +1,532 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>来电记录</title>
+<title>来电助手 · 没接的电话，AI 替你接</title>
+<meta name="description" content="来电助手：你没接的电话由 AI 接听，问清是谁、什么事，几秒后把中文摘要送到你手机。中英双语，自动识别诈骗和推销，不录音。">
+<meta property="og:title" content="来电助手 · 没接的电话，AI 替你接">
+<meta property="og:description" content="AI 接听你没接的电话，问清来意，中文摘要秒到手机。中英双语，识别诈骗。">
+<meta property="og:image" content="/assets/app-icon-256.png">
+<meta name="theme-color" content="#246E5E">
+<link rel="icon" href="/assets/favicon.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <style>
   :root {
-    --bg: #f6f5f2; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e4e2dc;
-    --accent: #2f5d50; --danger: #b3261e; --warn: #9a6200; --ok: #2f6f3e; --chip: #efede7;
+    --bg: #fbfbf9;
+    --bg-soft: #f2f4f1;
+    --card: #ffffff;
+    --ink: #0f1513;
+    --ink-2: #2b3330;
+    --muted: #5f6964;
+    --line: rgba(15, 21, 19, 0.09);
+    --brand: #246e5e;
+    --brand-ink: #1b5447;
+    --mint: #7ac4ac;
+    --mint-soft: #dff3ea;
+    --danger: #c2412d;
+    --danger-soft: #fbe6e1;
+    --shadow: 0 1px 2px rgba(15, 21, 19, 0.04), 0 12px 32px -12px rgba(15, 21, 19, 0.14);
+    --radius: 20px;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", "Noto Sans SC", "Segoe UI", sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #161614; --card: #1f1f1c; --ink: #ecebe6; --muted: #a09e97; --line: #33322e;
-      --accent: #7fb8a6; --danger: #f2a39c; --warn: #e8c26e; --ok: #8fcf9c; --chip: #2a2a26;
+      --bg: #0b0f0e;
+      --bg-soft: #111715;
+      --card: #141b19;
+      --ink: #eef3f1;
+      --ink-2: #d3dbd8;
+      --muted: #94a09b;
+      --line: rgba(238, 243, 241, 0.09);
+      --brand: #7ac4ac;
+      --brand-ink: #a6dcc8;
+      --mint: #7ac4ac;
+      --mint-soft: rgba(122, 196, 172, 0.14);
+      --danger: #f08b77;
+      --danger-soft: rgba(240, 139, 119, 0.14);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6);
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
-  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  h1 { font-size: 22px; margin: 0; }
-  .muted { color: var(--muted); font-size: 13px; }
-  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 8px; }
-  button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
-    border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-  button:disabled { opacity: .5; cursor: default; }
-  input { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
-    background: var(--card); color: var(--ink); width: 100%; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 12px 0; }
-  .panel h2 { font-size: 15px; margin: 0 0 8px; }
-  .log { white-space: pre-wrap; font-size: 13px; color: var(--muted); margin: 8px 0 0; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 10px 0; }
-  .card.scam { border-left: 4px solid var(--danger); }
-  .card.sales { border-left: 4px solid var(--warn); }
-  .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-  .who { font-weight: 600; font-size: 16px; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
-  .chip { background: var(--chip); border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--muted); }
-  .chip.danger { color: var(--danger); } .chip.warn { color: var(--warn); } .chip.ok { color: var(--ok); }
-  .summary { margin: 6px 0; }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0 0; font-size: 14px; }
-  dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
-  details { margin-top: 8px; } summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-  pre { white-space: pre-wrap; font: 13px/1.5 ui-monospace, Menlo, monospace; background: var(--chip);
-    padding: 10px; border-radius: 8px; margin: 6px 0 0; }
-  .actions { margin-top: 10px; display: flex; gap: 8px; }
-  .empty { text-align: center; color: var(--muted); padding: 32px 0; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 var(--font);
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--brand);
+    background: var(--mint-soft); padding: 6px 12px; border-radius: 999px; }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
+  h1, h2, h3 { margin: 0; letter-spacing: -0.025em; }
+  h2 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.12; font-weight: 700; }
+  .lead { color: var(--muted); font-size: clamp(17px, 1.6vw, 20px); max-width: 640px; }
+  section { padding: 96px 0; }
+  .section-head { display: grid; gap: 14px; justify-items: center; text-align: center; margin-bottom: 52px; }
+
+  /* 导航 */
+  .nav { position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(1.6) blur(16px); -webkit-backdrop-filter: saturate(1.6) blur(16px);
+    background: color-mix(in srgb, var(--bg) 78%, transparent); border-bottom: 1px solid var(--line); }
+  .nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+  .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  .nav-links { display: flex; align-items: center; gap: 28px; font-size: 15px; color: var(--muted); }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .lang { font: 600 13px var(--font); color: var(--ink-2); background: transparent; border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 600 15px var(--font);
+    border-radius: 999px; padding: 12px 22px; border: 1px solid transparent; cursor: pointer; transition: transform .15s ease, background .15s ease; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-dark { background: var(--ink); color: var(--bg); }
+  .btn-ghost { background: var(--card); color: var(--ink); border-color: var(--line); }
+  .btn-sm { padding: 8px 16px; font-size: 14px; }
+  .btn svg { width: 18px; height: 18px; }
+
+  /* 首屏 */
+  .hero { position: relative; overflow: hidden; padding: 88px 0 72px; text-align: center; }
+  .hero::before { content: ""; position: absolute; inset: -40% -10% auto; height: 900px; z-index: -1;
+    background: radial-gradient(40% 50% at 30% 30%, color-mix(in srgb, var(--mint) 45%, transparent), transparent 70%),
+                radial-gradient(35% 45% at 72% 22%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 70%); filter: blur(10px); }
+  .hero h1 { font-size: clamp(42px, 7.4vw, 84px); line-height: 1.04; font-weight: 750; margin: 22px auto 22px; max-width: 900px; }
+  .hero h1 .accent { background: linear-gradient(120deg, var(--brand), var(--mint)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero .lead { margin: 0 auto; }
+  .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 34px 0 14px; }
+  .hero-note { font-size: 14px; color: var(--muted); }
+
+  /* 产品演示 */
+  .demo { position: relative; margin: 64px auto 0; max-width: 980px; display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px; text-align: left; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+  .live-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .live-tag { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--brand); }
+  .live-tag i { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); animation: pulse 1.6s ease-in-out infinite; }
+  .caller { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .wave { display: flex; align-items: center; gap: 4px; height: 36px; margin-bottom: 18px; }
+  .wave span { flex: 1; max-width: 6px; border-radius: 3px; background: linear-gradient(var(--mint), var(--brand)); height: 30%; animation: wave 1.2s ease-in-out infinite; }
+  .bubbles { display: grid; gap: 10px; }
+  .bubble { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.5; opacity: 0; transform: translateY(6px); animation: rise .5s ease forwards; }
+  .bubble small { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; font-weight: 600; }
+  .bubble.them { background: var(--bg-soft); border-top-left-radius: 6px; }
+  .bubble.ai { background: var(--mint-soft); justify-self: end; border-top-right-radius: 6px; }
+  .bubble:nth-child(1) { animation-delay: .3s; } .bubble:nth-child(2) { animation-delay: 1.3s; } .bubble:nth-child(3) { animation-delay: 2.3s; }
+  .stack { display: grid; gap: 16px; align-content: start; }
+  .notif-top { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .notif-top img { width: 22px; height: 22px; border-radius: 6px; }
+  .notif-top span:last-child { margin-left: auto; }
+  .notif h3 { font-size: 18px; margin-bottom: 6px; }
+  .notif p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .tag { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--mint-soft); color: var(--brand); }
+  .tag.danger { background: var(--danger-soft); color: var(--danger); }
+  .scam { display: flex; gap: 14px; align-items: flex-start; }
+  .scam .icon { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--danger-soft); color: var(--danger); }
+  .scam h3 { font-size: 16px; margin-bottom: 2px; }
+  .scam p { margin: 0; font-size: 14px; color: var(--muted); }
+
+  /* 信任条 */
+  .trust { padding: 28px 0 0; }
+  .trust ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; color: var(--muted); font-size: 15px; }
+  .trust li { display: inline-flex; align-items: center; gap: 8px; }
+  .trust svg { width: 18px; height: 18px; color: var(--brand); }
+
+  /* 步骤 */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: step; }
+  .step { position: relative; padding: 28px; }
+  .step .num { font: 700 14px var(--font); color: var(--brand); background: var(--mint-soft); width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 18px; }
+  .step h3 { font-size: 21px; margin-bottom: 8px; }
+  .step p { margin: 0; color: var(--muted); font-size: 16px; }
+  .code { display: inline-block; margin-top: 14px; font: 600 14px ui-monospace, "SF Mono", Menlo, monospace; background: var(--bg-soft); border-radius: 8px; padding: 6px 10px; color: var(--ink-2); }
+
+  /* 功能 bento */
+  .soft { background: var(--bg-soft); }
+  .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; }
+  .feature { padding: 28px; display: flex; flex-direction: column; gap: 10px; min-height: 240px; }
+  .feature h3 { font-size: 21px; }
+  .feature p { margin: 0; color: var(--muted); font-size: 16px; }
+  .feature .ficon { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--mint-soft); color: var(--brand); margin-bottom: 6px; }
+  .feature .ficon svg { width: 22px; height: 22px; }
+  .span-4 { grid-column: span 4; } .span-3 { grid-column: span 3; } .span-2 { grid-column: span 2; }
+  .meter { margin-top: auto; display: grid; gap: 10px; }
+  .meter-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; font-size: 14px; }
+  .meter-row .bar { grid-column: 1 / -1; height: 8px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
+  .meter-row .bar i { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
+  .meter-row.hot .bar i { background: var(--danger); }
+  .meter-row b { font-variant-numeric: tabular-nums; }
+  .langs { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .langs span { font-size: 14px; padding: 6px 12px; border-radius: 12px; background: var(--bg-soft); }
+  .voices { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .voices span { font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); }
+  .voices span.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  /* 价格 */
+  .pricing { display: grid; grid-template-columns: repeat(2, minmax(0, 380px)); gap: 20px; justify-content: center; }
+  .plan { padding: 32px; display: flex; flex-direction: column; gap: 18px; }
+  .plan.best { border: 1.5px solid var(--brand); position: relative; }
+  .plan .badge { position: absolute; top: -12px; right: 24px; background: var(--brand); color: var(--bg); font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+  .plan h3 { font-size: 18px; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+  .price { font-size: 48px; font-weight: 750; letter-spacing: -0.03em; line-height: 1; }
+  .price small { font-size: 17px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .plan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 16px; }
+  .plan li { display: flex; gap: 10px; align-items: flex-start; }
+  .plan li svg { flex: none; width: 20px; height: 20px; color: var(--brand); margin-top: 2px; }
+  .plan .btn { margin-top: auto; }
+  .fine { text-align: center; color: var(--muted); font-size: 14px; margin-top: 24px; }
+
+  /* 常见问题 */
+  .faq { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; }
+  .faq details { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 0 22px; }
+  .faq summary { cursor: pointer; list-style: none; padding: 20px 0; font-weight: 600; font-size: 17px; display: flex; justify-content: space-between; gap: 16px; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; font-weight: 400; font-size: 22px; line-height: 1; color: var(--muted); transition: transform .2s ease; }
+  .faq details[open] summary::after { transform: rotate(45deg); }
+  .faq details p { margin: 0 0 20px; color: var(--muted); font-size: 16px; }
+
+  /* 结尾 */
+  .cta { margin: 0 20px; border-radius: 32px; padding: 88px 24px; text-align: center; color: #fff; position: relative; overflow: hidden;
+    background: radial-gradient(60% 80% at 20% 0%, rgba(122, 196, 172, .55), transparent 60%), linear-gradient(135deg, #1b5447, #246e5e 55%, #2f8a75); }
+  .cta h2 { color: #fff; max-width: 720px; margin: 0 auto 16px; }
+  .cta p { color: rgba(255, 255, 255, .8); margin: 0 auto 32px; max-width: 560px; font-size: 18px; }
+  .cta .btn-dark { background: #fff; color: #0f1513; }
+  footer { padding: 56px 0 40px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: center; }
+  footer nav { display: flex; gap: 22px; flex-wrap: wrap; }
+  footer a:hover { color: var(--ink); }
+
+  @keyframes wave { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .bubble { opacity: 1; transform: none; }
+    .wave span { height: 60%; }
+  }
+
+  @media (max-width: 900px) {
+    .nav-links { display: none; }
+    .demo { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .bento { grid-template-columns: 1fr; }
+    .span-4, .span-3, .span-2 { grid-column: auto; }
+    .feature { min-height: 0; }
+    .meter, .langs, .voices { margin-top: 8px; }
+    .pricing { grid-template-columns: minmax(0, 1fr); }
+    section { padding: 72px 0; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+    .hero { padding-top: 56px; }
+    .panel, .feature, .step, .plan { padding: 20px; }
+    .nav .btn-sm { display: none; }
+    .cta { margin: 0 12px; padding: 64px 20px; border-radius: 24px; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>来电记录</h1>
-    <span class="muted" id="updated"></span>
-  </header>
 
-  <section class="panel" id="login" hidden>
-    <h2>输入面板口令</h2>
-    <p class="muted">即 Vercel 环境变量里的 DASHBOARD_TOKEN，只保存在这台设备的浏览器里。</p>
-    <input id="token" type="password" autocomplete="off">
-    <div class="bar"><button class="primary" id="save">进入</button></div>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="/assets/app-icon-256.png" alt="" width="32" height="32"><span data-i18n="brand">来电助手</span></a>
+    <nav class="nav-links">
+      <a href="#how" data-i18n="nav.how">怎么用</a>
+      <a href="#features" data-i18n="nav.features">功能</a>
+      <a href="#pricing" data-i18n="nav.pricing">价格</a>
+      <a href="#faq" data-i18n="nav.faq">常见问题</a>
+    </nav>
+    <div class="nav-right">
+      <button class="lang" id="lang" type="button" aria-label="Switch language">EN</button>
+      <a class="btn btn-dark btn-sm" href="#download" data-i18n="nav.cta">获取 App</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">AI 电话助手 · 为澳洲设计</span></span>
+      <h1 data-i18n-html="hero.title">没接的电话，<br><span class="accent">AI 替你接。</span></h1>
+      <p class="lead" data-i18n="hero.lead">问清是谁、什么事，几秒后把中文摘要送到你手机。诈骗和推销电话，自动识别、自动挂断。</p>
+      <div class="hero-cta" id="download">
+        <a class="btn btn-dark" href="#pricing">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 1.43c0 1.14-.49 2.27-1.18 3.08-.74.9-1.99 1.57-2.99 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.57-2.27 1.21-2.98.8-.94 2.14-1.64 3.25-1.68.03.13.05.28.05.43zm4.56 15.71c-.03.07-.46 1.58-1.52 3.12-.94 1.34-1.94 2.71-3.43 2.71-1.52 0-1.9-.88-3.63-.88-1.7 0-2.3.91-3.67.91-1.38 0-2.33-1.26-3.43-2.8-1.29-1.82-2.32-4.63-2.32-7.28 0-4.28 2.8-6.55 5.55-6.55 1.45 0 2.68.95 3.6.95.87 0 2.22-1.01 3.9-1.01.61 0 2.89.06 4.37 2.19-.13.09-2.38 1.37-2.38 4.19 0 3.26 2.85 4.42 2.96 4.45z"/></svg>
+          <span data-i18n="hero.cta">即将登陆 App Store</span>
+        </a>
+        <a class="btn btn-ghost" href="#how" data-i18n="hero.secondary">看看怎么用</a>
+      </div>
+      <p class="hero-note" data-i18n="hero.note">不用换号，不用装卡。支持 Telstra、Optus、Vodafone。</p>
+
+      <div class="demo" aria-label="产品演示">
+        <div class="panel">
+          <div class="live-head">
+            <span class="live-tag"><i></i><span data-i18n="demo.live">AI 正在接听</span></span>
+            <span class="caller">+61 4•• ••• 382</span>
+          </div>
+          <div class="wave" aria-hidden="true">
+            <span style="animation-delay:-.1s"></span><span style="animation-delay:-.5s"></span><span style="animation-delay:-.2s"></span><span style="animation-delay:-.8s"></span><span style="animation-delay:-.4s"></span><span style="animation-delay:-1s"></span><span style="animation-delay:-.3s"></span><span style="animation-delay:-.7s"></span><span style="animation-delay:-.15s"></span><span style="animation-delay:-.9s"></span><span style="animation-delay:-.45s"></span><span style="animation-delay:-.6s"></span><span style="animation-delay:-.25s"></span><span style="animation-delay:-.85s"></span><span style="animation-delay:-.35s"></span><span style="animation-delay:-.55s"></span><span style="animation-delay:-.05s"></span><span style="animation-delay:-.75s"></span><span style="animation-delay:-.4s"></span><span style="animation-delay:-.95s"></span>
+          </div>
+          <div class="bubbles">
+            <div class="bubble them"><small data-i18n="demo.caller">来电方</small>Hi, this is Sarah from City Dental, calling about your appointment on Friday.</div>
+            <div class="bubble ai"><small data-i18n="demo.ai">AI 助手</small>Hi Sarah, this is Charlie's AI assistant. What's it regarding?</div>
+            <div class="bubble them"><small data-i18n="demo.caller">来电方</small>Just confirming 10am Friday. Could they call us back?</div>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="panel notif">
+            <div class="notif-top"><img src="/assets/app-icon-256.png" alt="" width="22" height="22"><span data-i18n="brand">来电助手</span><span data-i18n="demo.now">刚刚</span></div>
+            <h3>Sarah · City Dental</h3>
+            <p data-i18n="demo.summary">诊所来电确认周五上午 10 点的预约，请你回电确认。</p>
+            <div class="tags"><span class="tag" data-i18n="demo.tag1">正常事务</span><span class="tag" data-i18n="demo.tag2">建议回电</span></div>
+          </div>
+          <div class="panel scam">
+            <span class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M12 8v4M12 16h.01"/></svg></span>
+            <div>
+              <h3 data-i18n="demo.scamTitle">疑似诈骗 · 已挂断</h3>
+              <p data-i18n="demo.scamText">自称「中国大使馆」，称包裹涉嫌违法，要求转账。诈骗风险 92。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="trust">
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="trust.1">中英文自动切换</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="trust.2">不录音，只存文字</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="trust.3">数据存放在悉尼</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="trust.4">随时一键关闭</span></li>
+        </ul>
+      </div>
+    </div>
   </section>
 
-  <div id="app" hidden>
-    <div class="bar">
-      <button id="refresh">刷新</button>
-      <button id="setup">同步配置到 Vapi</button>
-      <input id="test-to" type="tel" placeholder="被测手机号 +61…" style="width:180px">
-      <button id="test">测试呼叫转移</button>
-      <button id="logout">退出</button>
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-i18n="how.eyebrow">三步开始</span>
+        <h2 data-i18n="how.title">两分钟设置，从此不错过要紧电话</h2>
+        <p class="lead" data-i18n="how.lead">利用运营商自带的呼叫转移，你的号码不变，手机照常用。</p>
+      </div>
+      <div class="steps">
+        <div class="panel step">
+          <div class="num">1</div>
+          <h3 data-i18n="how.1t">开启代接</h3>
+          <p data-i18n="how.1d">在 App 里复制转移代码，到拨号键盘粘贴拨出，运营商提示设置成功即可。</p>
+          <span class="code">**004*…#</span>
+        </div>
+        <div class="panel step">
+          <div class="num">2</div>
+          <h3 data-i18n="how.2t">AI 接听</h3>
+          <p data-i18n="how.2d">你没接、拒接或没信号时，电话转给 AI。它用你设置的称呼和声音，问清对方是谁、为什么打来。</p>
+        </div>
+        <div class="panel step">
+          <div class="num">3</div>
+          <h3 data-i18n="how.3t">收到摘要</h3>
+          <p data-i18n="how.3d">挂断后几秒，App 里就有中文摘要、来意分类和完整转写。值得回的电话，一眼就知道。</p>
+        </div>
+      </div>
     </div>
-    <section class="panel" id="status" hidden>
-      <h2 id="status-title"></h2>
-      <p class="log" id="status-log"></p>
-    </section>
-    <section class="panel" id="tests" hidden>
-      <h2>最近的呼叫转移测试</h2>
-      <div id="tests-list"></div>
-    </section>
-    <div id="calls"></div>
-  </div>
+  </section>
+
+  <section id="features" class="soft">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-i18n="feat.eyebrow">功能</span>
+        <h2 data-i18n="feat.title">骚扰电话 AI 替你挡，<br>重要来电一个不漏</h2>
+      </div>
+      <div class="bento">
+        <div class="panel feature span-4">
+          <span class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg></span>
+          <h3 data-i18n="feat.scamT">识别诈骗和推销</h3>
+          <p data-i18n="feat.scamD">冒充使领馆、警察、海关、快递、银行的电话，AI 会标红并直接挂断；推销问清公司后礼貌结束。</p>
+          <div class="meter" aria-hidden="true">
+            <div class="meter-row hot"><span data-i18n="feat.m1">冒充大使馆</span><b>92</b><span class="bar"><i style="width:92%"></i></span></div>
+            <div class="meter-row"><span data-i18n="feat.m2">诊所预约</span><b>4</b><span class="bar"><i style="width:4%"></i></span></div>
+          </div>
+        </div>
+        <div class="panel feature span-2">
+          <span class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 3v2m1.05 9.5A18 18 0 0 1 6.4 9M12.5 18h7M11 21l5-10 5 10M4.5 15c2.5-1.5 4.5-4 5.5-7"/></svg></span>
+          <h3 data-i18n="feat.langT">中英文自动切换</h3>
+          <p data-i18n="feat.langD">对方说英文就用英文，换成普通话立刻跟上。</p>
+          <div class="langs" aria-hidden="true"><span>Hello?</span><span>你好</span></div>
+        </div>
+        <div class="panel feature span-2">
+          <span class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4V5z"/><path d="M8 9h8M8 12h5"/></svg></span>
+          <h3 data-i18n="feat.sumT">每通都有中文摘要</h3>
+          <p data-i18n="feat.sumD">谁打来、什么事、要不要回电、有没有截止时间，两三句话说清楚。</p>
+        </div>
+        <div class="panel feature span-2">
+          <span class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+          <h3 data-i18n="feat.voiceT">你的称呼，你选的声音</h3>
+          <p data-i18n="feat.voiceD">「这是 Charlie 的 AI 助手」。男声女声、成熟稳重或年轻，随时改。</p>
+          <div class="voices" aria-hidden="true"><span class="on" data-i18n="feat.v1">成熟</span><span data-i18n="feat.v2">稳重</span><span data-i18n="feat.v3">年轻</span></div>
+        </div>
+        <div class="panel feature span-2">
+          <span class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+          <h3 data-i18n="feat.privT">隐私优先</h3>
+          <p data-i18n="feat.privD">不录音；AI 不会透露你的姓、住址或任何账户信息，也不替你做任何承诺。</p>
+        </div>
+        <div class="panel feature span-3">
+          <span class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></span>
+          <h3 data-i18n="feat.numT">号码不变，手机照常用</h3>
+          <p data-i18n="feat.numD">不用换号、不用第二张卡。出国前一键关闭，避免漫游费用。</p>
+        </div>
+        <div class="panel feature span-3">
+          <span class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M4.9 4.9l14.2 14.2"/></svg></span>
+          <h3 data-i18n="feat.blockT">一键拉黑</h3>
+          <p data-i18n="feat.blockD">反复打来的骚扰号码，拉黑后直接拒接，不再浪费你的时间。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-i18n="price.eyebrow">价格</span>
+        <h2 data-i18n="price.title">简单透明，一个价格</h2>
+        <p class="lead" data-i18n="price.lead">不限通话分钟。随时在 iPhone 设置里取消。</p>
+      </div>
+      <div class="pricing">
+        <div class="panel plan">
+          <h3 data-i18n="price.monthly">月付</h3>
+          <div class="price">A$14.99 <small data-i18n="price.perMonth">/ 月</small></div>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="price.f1">AI 代接，不限分钟</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="price.f2">中文摘要与完整转写</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="price.f3">诈骗与推销识别</span></li>
+          </ul>
+          <a class="btn btn-ghost" href="#download" data-i18n="price.cta">即将上线</a>
+        </div>
+        <div class="panel plan best">
+          <span class="badge" data-i18n="price.save">约省 16%</span>
+          <h3 data-i18n="price.yearly">年付</h3>
+          <div class="price">A$149.99 <small data-i18n="price.perYear">/ 年</small></div>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="price.f4">月付的全部功能</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="price.f5">相当于每月 A$12.50</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="price.f6">一年不用操心续费</span></li>
+          </ul>
+          <a class="btn btn-dark" href="#download" data-i18n="price.cta">即将上线</a>
+        </div>
+      </div>
+      <p class="fine" data-i18n="price.fine">价格含 GST，通过 Apple 订阅，自动续费，可随时取消。</p>
+    </div>
+  </section>
+
+  <section id="faq" class="soft">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-i18n="faq.eyebrow">常见问题</span>
+        <h2 data-i18n="faq.title">你可能想知道</h2>
+      </div>
+      <div class="faq">
+        <details><summary data-i18n="faq.q1">需要换号码或者装第二张卡吗？</summary><p data-i18n="faq.a1">不需要。来电助手用的是运营商自带的「条件呼叫转移」：你没接、拒接或没信号时，电话才会转给 AI。你的号码和平时用法都不变。</p></details>
+        <details><summary data-i18n="faq.q2">支持哪些运营商？</summary><p data-i18n="faq.a2">Telstra、Optus、Vodafone 等主流运营商都支持标准的呼叫转移代码。部分虚拟运营商或预付费套餐可能不支持，或对转移另外收费，可以先咨询运营商。</p></details>
+        <details><summary data-i18n="faq.q3">通话会被录音吗？</summary><p data-i18n="faq.a3">不会。我们关闭了录音，只保存文字转写和 AI 摘要，方便你查看。你可以随时在 App 里删除账户和全部记录。</p></details>
+        <details><summary data-i18n="faq.q4">来电的人知道接电话的是 AI 吗？</summary><p data-i18n="faq.a4">知道。AI 会如实说明自己是 AI 助手，不会假装是你本人，也不会替你答应任何事情。</p></details>
+        <details><summary data-i18n="faq.q5">出国或者不想用了怎么办？</summary><p data-i18n="faq.a5">在 App 里点「关闭代接」，拨出 ##004# 即可取消转移，来电恢复正常。出国前建议先关闭，避免转移产生漫游费用。</p></details>
+        <details><summary data-i18n="faq.q6">怎么取消订阅？</summary><p data-i18n="faq.a6">订阅通过 Apple 管理，在 iPhone「设置 › Apple 账户 › 订阅」中随时取消，可以用到当前周期结束。</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="cta">
+      <h2 data-i18n="cta.title">让 AI 帮你接电话</h2>
+      <p data-i18n="cta.lead">专注眼前的事，重要来电不错过，骚扰电话不打扰。</p>
+      <a class="btn btn-dark" href="#download" data-i18n="cta.button">即将登陆 App Store</a>
+    </div>
+  </section>
 </main>
 
+<footer>
+  <div class="wrap">
+    <div>© 2026 Everyone Delivery Pty Ltd</div>
+    <nav>
+      <a href="/privacy.html" data-i18n="footer.privacy">隐私政策</a>
+      <a href="/terms.html" data-i18n="footer.terms">用户协议</a>
+      <a href="mailto:support@home-au.com">support@home-au.com</a>
+    </nav>
+  </div>
+</footer>
+
 <script>
-const CATEGORY = {
-  scam: ['疑似诈骗', 'danger'], telemarketing: ['推销', 'warn'], robocall: ['机器人外呼', 'warn'],
-  business: ['正常事务', 'ok'], personal: ['私人来电', 'ok'], unknown: ['未分类', ''],
+// 中文写在页面里（便于搜索引擎收录），英文在这里。按浏览器语言自动选择，点右上角可以切换。
+const EN = {
+  'brand': 'Call Assistant',
+  'nav.how': 'How it works', 'nav.features': 'Features', 'nav.pricing': 'Pricing', 'nav.faq': 'FAQ', 'nav.cta': 'Get the app',
+  'hero.eyebrow': 'AI phone assistant · Made for Australia',
+  'hero.title': 'Missed a call?<br><span class="accent">AI picks it up.</span>',
+  'hero.lead': 'It finds out who is calling and why, then sends a summary to your phone in seconds. Scams and sales calls are spotted and hung up on automatically.',
+  'hero.cta': 'Coming soon to the App Store', 'hero.secondary': 'See how it works',
+  'hero.note': 'Keep your number. No second SIM. Works with Telstra, Optus and Vodafone.',
+  'demo.live': 'AI is answering', 'demo.caller': 'Caller', 'demo.ai': 'AI assistant', 'demo.now': 'now',
+  'demo.summary': 'City Dental is confirming your Friday 10am appointment. Please call back.',
+  'demo.tag1': 'Business', 'demo.tag2': 'Call back',
+  'demo.scamTitle': 'Likely scam · hung up',
+  'demo.scamText': 'Claimed to be the "Chinese Embassy", said a parcel was illegal and asked for a transfer. Scam risk 92.',
+  'trust.1': 'English and Mandarin', 'trust.2': 'No recordings, text only', 'trust.3': 'Data stored in Sydney', 'trust.4': 'Turn off any time',
+  'how.eyebrow': 'Three steps', 'how.title': 'Two minutes to set up. Never miss what matters.',
+  'how.lead': "Uses your carrier's built-in call forwarding. Same number, same phone.",
+  'how.1t': 'Turn it on', 'how.1d': 'Copy the forwarding code in the app, paste it into the keypad and dial. Your carrier confirms it is set.',
+  'how.2t': 'AI answers', 'how.2d': "When you don't pick up, decline or have no signal, the call goes to the AI. It uses your name and voice, and asks who is calling and why.",
+  'how.3t': 'Get the summary', 'how.3d': 'Seconds after the call, the app shows a summary, a category and the full transcript. You know at a glance which calls to return.',
+  'feat.eyebrow': 'Features', 'feat.title': 'AI screens the noise.<br>You take the calls that matter.',
+  'feat.scamT': 'Spots scams and sales calls',
+  'feat.scamD': 'Calls impersonating embassies, police, customs, couriers or banks are flagged and hung up on. Sales calls end politely once the company is known.',
+  'feat.m1': 'Fake embassy', 'feat.m2': 'Clinic booking',
+  'feat.langT': 'English and Mandarin', 'feat.langD': 'Replies in whichever language the caller speaks, and switches when they do.',
+  'feat.sumT': 'A summary for every call', 'feat.sumD': 'Who called, why, whether to call back and any deadline, in two or three sentences.',
+  'feat.voiceT': 'Your name, your choice of voice', 'feat.voiceD': '"This is Charlie\'s AI assistant." Male or female, mature, calm or young. Change it any time.',
+  'feat.v1': 'Mature', 'feat.v2': 'Calm', 'feat.v3': 'Young',
+  'feat.privT': 'Privacy first', 'feat.privD': 'No recordings. The AI never reveals your surname, address or account details, and never makes promises for you.',
+  'feat.numT': 'Keep your number', 'feat.numD': 'No new number, no second SIM. Turn it off before travelling to avoid roaming charges.',
+  'feat.blockT': 'Block in one tap', 'feat.blockD': 'Numbers that keep pestering you are rejected straight away once blocked.',
+  'price.eyebrow': 'Pricing', 'price.title': 'Simple, one price', 'price.lead': 'Unlimited call minutes. Cancel any time in iPhone Settings.',
+  'price.monthly': 'Monthly', 'price.perMonth': '/ month', 'price.yearly': 'Yearly', 'price.perYear': '/ year', 'price.save': 'Save ~16%',
+  'price.f1': 'AI answering, unlimited minutes', 'price.f2': 'Summaries and full transcripts', 'price.f3': 'Scam and sales call detection',
+  'price.f4': 'Everything in Monthly', 'price.f5': 'Works out to A$12.50 a month', 'price.f6': 'One payment for the year',
+  'price.cta': 'Coming soon', 'price.fine': 'Prices include GST. Billed through Apple, renews automatically, cancel any time.',
+  'faq.eyebrow': 'FAQ', 'faq.title': 'Questions you may have',
+  'faq.q1': 'Do I need a new number or a second SIM?',
+  'faq.a1': "No. Call Assistant uses your carrier's conditional call forwarding: calls only go to the AI when you don't answer, decline or have no signal. Your number stays the same.",
+  'faq.q2': 'Which carriers are supported?',
+  'faq.a2': 'Telstra, Optus, Vodafone and other major carriers support the standard forwarding codes. Some resellers or prepaid plans may not, or may charge for forwarding, so check with your carrier.',
+  'faq.q3': 'Are calls recorded?', 'faq.a3': 'No. Recording is off; we keep only a text transcript and an AI summary for you to read. You can delete your account and all records in the app at any time.',
+  'faq.q4': 'Do callers know they are talking to an AI?', 'faq.a4': 'Yes. The AI says it is an AI assistant. It never pretends to be you and never agrees to anything on your behalf.',
+  'faq.q5': 'What if I travel or want to stop?', 'faq.a5': 'Tap "Turn off" in the app and dial ##004# to cancel forwarding. We suggest turning it off before travelling to avoid roaming charges.',
+  'faq.q6': 'How do I cancel my subscription?', 'faq.a6': 'Subscriptions are managed by Apple. Cancel any time in iPhone Settings › Apple Account › Subscriptions; you keep access until the end of the period.',
+  'cta.title': 'Let AI answer for you', 'cta.lead': 'Stay focused. Never miss what matters, and skip the calls that don\'t.', 'cta.button': 'Coming soon to the App Store',
+  'footer.privacy': 'Privacy', 'footer.terms': 'Terms',
 };
-const ACTION = { call_back: '建议回电', ignore: '可以忽略', block: '建议拉黑' };
-const URGENCY = { high: '紧急', medium: '一般', low: '不急' };
-const MATCH = { call_sid: '', caller_time: '按号码与时间匹配', unmatched: '未能匹配到来电' };
-
-let token = '';
-try { token = localStorage.getItem('dashToken') || ''; } catch (e) {}
-
-const $ = (id) => document.getElementById(id);
-function el(tag, attrs = {}, ...children) {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') node.className = v; else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
-    else node.setAttribute(k, v);
-  }
-  for (const c of children.flat()) if (c !== null && c !== undefined && c !== '') {
-    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
-  }
-  return node;
-}
-
-async function api(path, options = {}) {
-  const res = await fetch(path, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(options.headers || {}) },
-  });
-  if (res.status === 401) { showLogin(); throw new Error('口令不正确'); }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok && !data.steps) throw new Error(data.error || ('请求失败 ' + res.status));
-  return data;
-}
-
-function showLogin() { $('login').hidden = false; $('app').hidden = true; }
-function showApp() { $('login').hidden = true; $('app').hidden = false; load(); }
-function status(title, text) { $('status').hidden = false; $('status-title').textContent = title; $('status-log').textContent = text || ''; }
-
-function fmtTime(iso) {
-  return new Date(iso).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function card(call) {
-  const s = call.structured || {};
-  const [catLabel, catTone] = CATEGORY[s.category] || CATEGORY.unknown;
-  const kind = s.category === 'scam' || (s.scam_risk || 0) >= 70 ? 'scam'
-    : (s.category === 'telemarketing' || s.category === 'robocall') ? 'sales' : '';
-  const who = [s.caller_name, s.organization].filter(Boolean).join(' · ') || call.from_number || '未知来电';
-  const chips = [
-    el('span', { class: 'chip ' + catTone }, catLabel),
-    typeof s.scam_risk === 'number' ? el('span', { class: 'chip ' + (s.scam_risk >= 70 ? 'danger' : s.scam_risk >= 40 ? 'warn' : '') }, '诈骗风险 ' + s.scam_risk) : null,
-    s.urgency ? el('span', { class: 'chip' }, URGENCY[s.urgency] || s.urgency) : null,
-    s.recommended_action ? el('span', { class: 'chip' }, ACTION[s.recommended_action] || s.recommended_action) : null,
-    call.status === 'blocked' ? el('span', { class: 'chip danger' }, '黑名单已拒接') : null,
-    call.status === 'answering' ? el('span', { class: 'chip' }, '通话中或报告未到') : null,
-    call.status === 'unpaid' ? el('span', { class: 'chip danger' }, '订阅失效已拒接') : null,
-    call.status === 'rejected' ? el('span', { class: 'chip warn' }, '无法归属已拒接') : null,
-    call.attributed ? null : el('span', { class: 'chip warn' }, '无转移来源'),
-    MATCH[call.match_method] ? el('span', { class: 'chip warn' }, MATCH[call.match_method]) : null,
-  ];
-  const rows = [
-    ['来电号码', call.from_number], ['来意', s.purpose], ['回电号码', s.callback_number],
-    ['时间要求', s.deadline], ['判定理由', (s.scam_reasons || []).join('；')],
-    ['时长', call.duration_seconds ? Math.round(call.duration_seconds) + ' 秒' : ''],
-    ['转移来源', call.forwarded_from || '（运营商未提供）'],
-  ].filter(([, v]) => v);
-
-  const actions = el('div', { class: 'actions' });
-  if (call.from_number && call.from_number.startsWith('+')) {
-    actions.append(el('a', { href: 'tel:' + call.from_number }, el('button', {}, '回电')));
-    actions.append(el('button', { onclick: () => block(call.from_number) }, '拉黑'));
-  }
-
-  return el('article', { class: 'card ' + kind },
-    el('div', { class: 'top' }, el('span', { class: 'who' }, who), el('span', { class: 'muted' }, fmtTime(call.created_at))),
-    el('div', { class: 'chips' }, chips),
-    el('p', { class: 'summary' }, s.summary_zh || call.summary || ''),
-    el('dl', {}, rows.map(([k, v]) => [el('dt', {}, k), el('dd', {}, v)])),
-    call.transcript ? el('details', {}, el('summary', {}, '查看完整转写'), el('pre', {}, call.transcript)) : null,
-    actions,
-  );
-}
-
-async function load() {
-  try {
-    const data = await api('/api/calls');
-    const list = $('calls');
-    list.replaceChildren(...(data.calls.length ? data.calls.map(card) : [el('p', { class: 'empty' }, '还没有来电记录')]));
-    $('tests').hidden = !data.forwardTests.length;
-    $('tests-list').replaceChildren(...data.forwardTests.map((t) => el('p', {},
-      el('span', { class: 'chip ' + (t.ok === true ? 'ok' : t.ok === false ? 'danger' : '') }, t.ok === true ? '成功' : t.ok === false ? '未转移' : '等待中'),
-      ' ', el('span', { class: 'muted' }, fmtTime(t.created_at) + '：'), t.text)));
-    $('updated').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
-  } catch (e) { status('读取失败', e.message); }
-}
-
-async function block(number) {
-  if (!confirm('拉黑 ' + number + '？之后这个号码打来会直接被拒接。')) return;
-  try { await api('/api/admin/blocklist', { method: 'POST', body: JSON.stringify({ number, reason: 'manual' }) }); load(); }
-  catch (e) { status('拉黑失败', e.message); }
-}
-
-$('save').onclick = () => {
-  token = $('token').value.trim();
-  try { localStorage.setItem('dashToken', token); } catch (e) {}
-  showApp();
-};
-$('logout').onclick = () => { try { localStorage.removeItem('dashToken'); } catch (e) {} token = ''; showLogin(); };
-$('refresh').onclick = load;
-$('setup').onclick = async () => {
-  $('setup').disabled = true; status('正在同步配置…');
-  try {
-    const r = await api('/api/admin/setup', { method: 'POST' });
-    status(r.ok ? '配置已同步' : '同步失败', [...(r.steps || []), r.error || ''].join('\n'));
-  } catch (e) { status('同步失败', e.message); }
-  $('setup').disabled = false;
-};
-try { $('test-to').value = localStorage.getItem('testTo') || ''; } catch (e) {}
-$('test').onclick = async () => {
-  const to = $('test-to').value.trim();
-  if (!to) { status('请先填写被测手机号', '填写已设置呼叫转移的手机号，E.164 格式，例如 +61412345678。'); return; }
-  if (!confirm(`将用 Twilio 号码拨打 ${to}。来电时请按拒接或不接，约 1 分钟后结果会自动显示。`)) return;
-  try { localStorage.setItem('testTo', to); } catch (e) {}
-  try {
-    await api('/api/admin/check-forwarding', { method: 'POST', body: JSON.stringify({ to }) });
-    status('测试电话已拨出', '手机响起后按拒接（测占线转移）或一直不接（测无人接听转移）。结果会在约 1 分钟内自动出现在下方。');
-    [20, 45, 70, 100].forEach((s) => setTimeout(load, s * 1000));
-    load();
-  }
-  catch (e) { status('测试失败', e.message); }
+const META_EN = {
+  title: 'Call Assistant · Missed a call? AI picks it up',
+  description: 'Call Assistant answers the calls you miss, finds out who is calling and why, and sends you a summary in seconds. English and Mandarin, scam detection, no recordings.',
 };
 
-if (token) showApp(); else showLogin();
-setInterval(() => { if (token && !document.hidden) load(); }, 15000);
+const nodes = [...document.querySelectorAll('[data-i18n], [data-i18n-html]')];
+nodes.forEach((n) => { n.dataset.zh = n.hasAttribute('data-i18n-html') ? n.innerHTML : n.textContent; });
+const zhTitle = document.title;
+const zhDescription = document.querySelector('meta[name="description"]').content;
+
+function setLang(lang) {
+  const en = lang === 'en';
+  for (const n of nodes) {
+    const key = n.dataset.i18n || n.dataset.i18nHtml;
+    const value = en ? EN[key] : n.dataset.zh;
+    if (value === undefined) continue;
+    if (n.hasAttribute('data-i18n-html')) n.innerHTML = value; else n.textContent = value;
+  }
+  document.documentElement.lang = en ? 'en' : 'zh-Hans';
+  document.title = en ? META_EN.title : zhTitle;
+  document.querySelector('meta[name="description"]').content = en ? META_EN.description : zhDescription;
+  document.getElementById('lang').textContent = en ? '中文' : 'EN';
+  try { localStorage.setItem('lang', lang); } catch (e) {}
+}
+
+let saved = null;
+try { saved = localStorage.getItem('lang'); } catch (e) {}
+const initial = saved || ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+if (initial === 'en') setLang('en');
+document.getElementById('lang').addEventListener('click', () => setLang(document.documentElement.lang === 'en' ? 'zh' : 'en'));
 </script>
 </body>
 </html>
