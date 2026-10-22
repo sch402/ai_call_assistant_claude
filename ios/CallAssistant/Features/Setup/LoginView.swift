@@ -72,6 +72,9 @@ struct LoginView: View {
             primaryButton("获取验证码", action: sendCode)
                 .disabled(isWorking || PhoneNumber.e164(phoneText) == nil)
                 .padding(.top, 16)
+
+            agreementLine
+                .padding(.top, 14)
         }
     }
 
@@ -141,6 +144,24 @@ struct LoginView: View {
     }
 
     // MARK: - 组件
+
+    /// 「继续即表示同意《用户协议》和《隐私政策》」，链接到后端 public/ 下的页面。
+    private var agreementLine: some View {
+        var text = AttributedString(localized: "继续即表示同意")
+        if let terms = LegalLinks.terms(server: session.serverURL),
+           let privacy = LegalLinks.privacy(server: session.serverURL) {
+            var termsLink = AttributedString(localized: "《用户协议》")
+            termsLink.link = terms
+            var privacyLink = AttributedString(localized: "《隐私政策》")
+            privacyLink.link = privacy
+            text += termsLink + AttributedString(localized: "和") + privacyLink
+        }
+        return Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+    }
 
     @ViewBuilder
     private var errorLine: some View {

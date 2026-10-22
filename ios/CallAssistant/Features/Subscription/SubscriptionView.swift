@@ -147,7 +147,9 @@ struct SubscriptionView: View {
             HStack(spacing: 16) {
                 Button("恢复购买") { Task { await store.restore(session: session) } }
                     .disabled(store.isPurchasing)
-                Link("使用条款", destination: LegalLinks.terms)
+                if let terms = LegalLinks.terms(server: session.serverURL) {
+                    Link("使用条款", destination: terms)
+                }
                 if let privacy = LegalLinks.privacy(server: session.serverURL) {
                     Link("隐私政策", destination: privacy)
                 }
@@ -216,8 +218,10 @@ private struct PlanCard: View {
 }
 
 enum LegalLinks {
-    /// 苹果标准最终用户许可协议（EULA）
-    static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    /// 后端 public/terms.html（用户协议，订阅页按苹果要求必须链接）
+    static func terms(server: URL?) -> URL? {
+        server?.appending(path: "terms.html")
+    }
 
     /// 后端 public/privacy.html
     static func privacy(server: URL?) -> URL? {

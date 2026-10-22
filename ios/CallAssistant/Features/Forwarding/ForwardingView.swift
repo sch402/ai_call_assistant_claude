@@ -77,8 +77,8 @@ struct ForwardingView: View {
                 }
             }
             .padding(.vertical, 6)
-            if let number {
-                LabeledContent("代接号码", value: PhoneFormat.display(number))
+            if let config = session.config {
+                LabeledContent("代接号码", value: config.twilioNumberLabel)
             }
             if let subscription = session.config?.subscription, subscription.state != .active {
                 SubscriptionBanner(info: subscription, onSubscribe: { session.showSubscription = true })
@@ -137,12 +137,12 @@ struct ForwardingView: View {
         } header: {
             Text("iPhone 设置检查")
         } footer: {
-            Text("这两项开着时，iPhone 会自己先接听，电话就不会转给 AI。打开后点左上角返回「电话」，就能看到这两项。")
+            Text("这两项开着时，iPhone 会自己先接听，电话就不会转给 AI。打开「电话」设置后向下滑动，就能找到这两项。")
         }
     }
 
-    /// iOS 没有公开的方法直接打开「设置 › App › 电话」（私有链接会被审核拒绝）。
-    /// 用 CallKit 的公开方法打开「电话 › 来电阻止与身份识别」，返回一级就是电话设置；失败时打开本 App 的设置页。
+    /// 用 CallKit 的公开方法打开「设置 › App › 电话」（实测打开的是电话设置主页；私有的 App-prefs 链接会被审核拒绝）。
+    /// 无法让设置页自动滚动到某一项。失败时打开本 App 的设置页。
     private func openPhoneSettings() {
         CXCallDirectoryManager.sharedInstance.openSettings { error in
             guard error != nil, let url = URL(string: UIApplication.openSettingsURLString) else { return }

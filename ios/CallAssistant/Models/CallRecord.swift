@@ -8,6 +8,12 @@ struct AppConfig: Decodable, Equatable {
     /// AI 助手设置：称呼、性别、音色
     var profile: AssistantProfile?
     var subscription: SubscriptionInfo?
+
+    /// 界面上显示的代接号码：订阅失效或没开通时显示「尚未开通」，不展示号码（转过来也不会接）。
+    var twilioNumberLabel: String {
+        guard subscription?.isAnswering ?? true else { return String(localized: "尚未开通") }
+        return PhoneFormat.display(twilioNumber)
+    }
 }
 
 /// 订阅状态（后端 lib/entitlement.js）。到期后宽限期内照常代接，之后来电直接拒接。

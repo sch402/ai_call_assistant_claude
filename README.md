@@ -118,7 +118,7 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `api/subscription-sync.js` | App 购买或恢复购买后提交交易，验证苹果签名后立即开通 |
 | `api/appstore-notifications.js` | 苹果服务器通知（续费、过期、退款），更新订阅状态 |
 | `lib/appstore.js` | 苹果 JWS 签名校验（固定 Apple Root CA - G3 指纹）与交易 → 订阅记录的换算 |
-| `public/privacy.html` | 隐私政策（草稿，订阅页链接到这里） |
+| `public/privacy.html`、`public/terms.html` | 隐私政策和用户协议（中英双语草稿，上架前请律师审阅）。App 的登录页、订阅页和「我的 › 隐私与条款」链接到这里；共用样式 `public/legal.css` |
 | `lib/entitlement.js` | 订阅状态（3 天宽限期）与来电接听 / 拒接判定 |
 | `lib/auth.js` | 接口鉴权：`DASHBOARD_TOKEN`（网页面板）或 Supabase 登录令牌（App 用户） |
 | `public/index.html` | 网页面板 |
@@ -212,6 +212,7 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 3. **App 信息 › App Store 服务器通知**：正式环境和沙盒环境的网址都填 `https://<你的域名>/api/appstore-notifications`，版本选 **Version 2**。网页上没有测试按钮：用沙盒账号买一次订阅，Vercel 日志里出现「苹果通知 SUBSCRIBED」就说明通了。
 4. **App 信息 › 常规信息 › Apple ID**：把这串数字填进 Vercel 的 `APPLE_APP_APPLE_ID`。
 5. **App 隐私**：隐私政策网址填 `https://<你的域名>/privacy.html`（先把页面里的 `[联系邮箱]` 换掉）。
+6. **用户协议**：订阅页的「使用条款」链接到我们自己的 `terms.html`，不是苹果的标准协议。在 **App 信息 › 许可协议**（License Agreement）里选择自定义协议并粘贴 `terms.html` 的内容，或在 App 描述里写上 `https://<你的域名>/terms.html`。
 
 ### 测试
 

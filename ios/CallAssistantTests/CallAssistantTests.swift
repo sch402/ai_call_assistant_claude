@@ -193,3 +193,19 @@ final class DialURLTests: XCTestCase {
         XCTAssertFalse(ForwardingCode.noReply.canDialDirectly)
     }
 }
+
+final class TwilioNumberLabelTests: XCTestCase {
+    private func config(state: String) throws -> AppConfig {
+        let json = """
+        {"twilioNumber":"+61258496666","subscription":{"state":"\(state)","expiresAt":null,"graceEndsAt":null}}
+        """
+        return try JSONDecoder.api.decode(AppConfig.self, from: Data(json.utf8))
+    }
+
+    func testNumberIsHiddenUntilSubscribed() throws {
+        XCTAssertEqual(try config(state: "active").twilioNumberLabel, "+61 2 5849 6666")
+        XCTAssertEqual(try config(state: "grace").twilioNumberLabel, "+61 2 5849 6666")
+        XCTAssertEqual(try config(state: "none").twilioNumberLabel, "尚未开通")
+        XCTAssertEqual(try config(state: "expired").twilioNumberLabel, "尚未开通")
+    }
+}

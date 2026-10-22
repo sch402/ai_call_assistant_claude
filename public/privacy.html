@@ -4,76 +4,170 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>隐私政策 · 来电助手</title>
-<!-- 草稿：上架前请律师审阅，并把 [联系邮箱] 换成真实的联系方式。App 订阅页的「隐私政策」链接指向这里。 -->
-<style>
-  :root { --bg: #f6f5f2; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e4e2dc; --accent: #2f5d50; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #161614; --card: #1f1f1c; --ink: #ecebe6; --muted: #a09e97; --line: #33322e; --accent: #7fb8a6; }
-  }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; }
-  main { max-width: 680px; margin: 0 auto; padding: 32px 16px 64px; }
-  h1 { font-size: 28px; margin: 0 0 4px; }
-  h2 { font-size: 18px; margin: 32px 0 8px; color: var(--accent); }
-  p, li { margin: 6px 0; }
-  ul { padding-left: 20px; }
-  .muted { color: var(--muted); font-size: 14px; }
-  hr { border: 0; border-top: 1px solid var(--line); margin: 48px 0 32px; }
-</style>
+<!-- 草稿：上架前请律师审阅，并把 [联系邮箱] 换成真实的联系方式。App 的登录页、订阅页和「我的 › 隐私与条款」链接到这里。 -->
+<link rel="stylesheet" href="legal.css">
 </head>
 <body>
 <main>
   <h1>隐私政策</h1>
-  <p class="muted">来电助手 · Everyone Delivery Pty Ltd · 更新于 2026 年 10 月</p>
+  <p class="muted">来电助手 · Everyone Delivery Pty Ltd · 生效日期：2026 年 10 月 22 日</p>
+  <p class="lang"><a href="#en">English</a><a href="terms.html">用户协议</a></p>
 
-  <h2>我们收集什么</h2>
+  <div class="note">
+    <strong>简要说明</strong>
+    <ul>
+      <li>我们只收集提供代接服务所需的信息：你的手机号、助手设置、AI 代接的来电记录和订阅状态。</li>
+      <li>通话<strong>不录音</strong>，只保存文字转写和 AI 摘要。</li>
+      <li>不出售你的数据，不用于广告，不读取你的通讯录、短信或位置。</li>
+      <li>你可以随时在 App 里删除账户，所有数据会被立即删除。</li>
+    </ul>
+  </div>
+
+  <h2>1. 我们是谁</h2>
+  <p>「来电助手」（以下称「本服务」）由 Everyone Delivery Pty Ltd（以下称「我们」）运营。我们遵守澳大利亚《1988 年隐私法》（Privacy Act 1988）及其中的澳大利亚隐私原则（APPs）。本政策说明我们收集哪些个人信息、为什么收集、如何使用和保护，以及你享有的权利。</p>
+
+  <h2>2. 我们收集的信息</h2>
+  <table>
+    <tr><th>类别</th><th>具体内容</th><th>用途</th></tr>
+    <tr><td>账户信息</td><td>你的手机号（通过短信验证码确认）</td><td>登录；确认被转移过来的来电属于你</td></tr>
+    <tr><td>助手设置</td><td>你填写的称呼，以及选择的声音（男声 / 女声、音色）</td><td>AI 接听时使用你的称呼和你选的声音</td></tr>
+    <tr><td>来电记录</td><td>来电号码、来电时间、运营商带来的转移来源号码、通话时长、文字转写、AI 生成的摘要和分类（例如是否疑似诈骗）</td><td>在 App 里向你展示谁打来、为什么打来</td></tr>
+    <tr><td>黑名单</td><td>你选择拉黑的号码</td><td>直接拒接这些号码</td></tr>
+    <tr><td>订阅信息</td><td>Apple 提供的交易编号、订阅产品、到期时间、是否自动续费</td><td>判断代接服务是否有效</td></tr>
+    <tr><td>技术信息</td><td>App 版本、请求时间、IP 地址等服务器运行日志</td><td>保障服务安全、排查故障</td></tr>
+  </table>
+  <p>我们<strong>不会</strong>收集：通话录音、你的通讯录、短信、位置、照片，以及银行卡等支付信息（付款完全由 Apple 处理）。</p>
+
+  <h2>3. 关于来电方的信息</h2>
+  <p>AI 代接时会处理来电方的电话号码和他们在通话中说的话。为此：</p>
   <ul>
-    <li><strong>你的手机号</strong>：用于短信验证码登录，以及确认被转移过来的来电属于你。</li>
-    <li><strong>AI 代接的来电</strong>：来电号码、时间、运营商带来的转移来源、通话文字转写，以及 AI 生成的摘要和分类（例如是否疑似诈骗）。</li>
-    <li><strong>订阅信息</strong>：苹果提供的交易编号、订阅产品和到期时间。付款由苹果处理，我们拿不到你的银行卡等支付信息。</li>
+    <li>AI 在通话中会告诉来电方，接听的是 AI 助手。</li>
+    <li>这些信息只用于把来电内容转达给你，保存在你的账户下，随你的账户一起删除。</li>
+    <li>来电方如需查询或删除与自己有关的记录，可以通过本政策末尾的方式联系我们。</li>
   </ul>
-  <p>我们<strong>不保存通话录音</strong>，也不读取你的通讯录、短信或位置。</p>
 
-  <h2>怎么使用</h2>
-  <p>只用于提供代接服务：接听转过来的电话、生成摘要给你看、判断订阅是否有效。我们不出售数据，不用于广告。</p>
-  <p>AI 接听时会告诉来电方这是 AI 助手，并且不会透露你的姓名以外的任何个人信息。</p>
-
-  <h2>谁会处理这些数据</h2>
+  <h2>4. 我们如何使用信息</h2>
   <ul>
-    <li>Supabase（数据库，澳洲悉尼）</li>
-    <li>Twilio（接收转移来电、发送登录验证码）</li>
-    <li>Vapi 与 OpenAI（实时语音识别与对话，服务器在美国）</li>
-    <li>Vercel（服务托管）</li>
-    <li>Apple（订阅付款）</li>
+    <li>提供代接服务：接听转过来的电话、生成摘要、识别诈骗和推销电话。</li>
+    <li>管理你的账户和订阅。</li>
+    <li>保障服务安全，防止滥用和欺诈。</li>
+    <li>排查故障、改进服务质量（使用汇总或去标识化的数据）。</li>
+    <li>履行法律义务。</li>
+  </ul>
+  <p>我们不出售或出租你的个人信息，不用于广告或营销画像，也不会用你的通话内容训练我们自己的 AI 模型。</p>
+
+  <h2>5. AI 处理</h2>
+  <p>来电的实时语音识别、对话和摘要由第三方 AI 服务完成（见第 6 节）。通话音频只在通话过程中被实时处理，我们已关闭录音功能，不保存音频。AI 生成的摘要和分类可能不准确，请以完整转写为准。按 OpenAI 的 API 数据政策，通过 API 提交的数据默认不会被用于训练其模型。</p>
+
+  <h2>6. 我们与谁共享信息</h2>
+  <p>我们只把信息提供给帮助我们运营本服务的服务商，并要求他们按合同保护数据、只用于为我们提供服务：</p>
+  <table>
+    <tr><th>服务商</th><th>用途</th><th>数据所在地</th></tr>
+    <tr><td>Supabase</td><td>数据库、账户登录</td><td>澳大利亚（悉尼）</td></tr>
+    <tr><td>Vercel</td><td>服务器托管</td><td>澳大利亚（悉尼），部分服务可能在美国</td></tr>
+    <tr><td>Twilio</td><td>接收转移来电、发送登录验证码</td><td>美国及其他地区</td></tr>
+    <tr><td>Vapi</td><td>AI 语音通话平台</td><td>美国</td></tr>
+    <tr><td>OpenAI</td><td>实时语音识别、对话与摘要</td><td>美国</td></tr>
+    <tr><td>Apple</td><td>订阅付款</td><td>按 Apple 的隐私政策</td></tr>
+  </table>
+  <p>除此以外，只有在法律要求（例如法院命令）、为保护用户或公众的安全、或公司合并收购时，我们才会披露个人信息，并在法律允许时通知你。</p>
+
+  <h2>7. 跨境传输</h2>
+  <p>如第 6 节所列，部分信息会被传输到澳大利亚境外（主要是美国）处理。使用本服务即表示你知悉并同意这种传输。我们会采取合理措施，确保境外服务商按与澳大利亚隐私原则相当的标准保护你的信息。</p>
+
+  <h2>8. 保存期限</h2>
+  <ul>
+    <li>账户信息、助手设置、来电记录和黑名单：保存到你删除账户为止。</li>
+    <li>订阅记录：随账户删除；法律要求保留的交易记录除外。</li>
+    <li>服务器运行日志：只短期保留，用于排查故障，之后自动删除。</li>
   </ul>
 
-  <h2>保存多久、如何删除</h2>
-  <p>通话记录会一直保存，直到你删除账户。你可以在 App 的「我的 › 删除账户」里随时删除，你的手机号、通话记录和订阅记录会被立即永久删除。删除账户不会取消苹果订阅，请在 iPhone 的「设置 › Apple 账户 › 订阅」里取消。如需导出数据，请联系 [联系邮箱]。</p>
+  <h2>9. 安全</h2>
+  <p>数据在传输中全程加密（HTTPS），数据库访问受严格权限控制，只有服务器能读写。登录凭证只保存在你手机的钥匙串中。没有任何系统能保证绝对安全；如发生可能对你造成严重伤害的数据泄露，我们会按《隐私法》的「应通报数据泄露」（Notifiable Data Breaches）规定通知你和澳大利亚信息专员办公室（OAIC）。</p>
 
-  <h2>联系我们</h2>
-  <p>[联系邮箱]</p>
+  <h2>10. 你的权利</h2>
+  <ul>
+    <li><strong>查询和更正</strong>：可以在 App 里查看和修改你的称呼和声音设置；其他信息可联系我们查询或更正。</li>
+    <li><strong>删除</strong>：在 App 的「我的 › 删除账户」里随时删除，你的手机号、来电记录和订阅记录会被立即永久删除。删除账户不会取消 Apple 订阅，请在 iPhone 的「设置 › Apple 账户 › 订阅」里取消。</li>
+    <li><strong>导出</strong>：如需导出你的来电记录，请联系我们。</li>
+    <li><strong>投诉</strong>：如对我们处理个人信息的方式不满，请先联系我们，我们会在 30 天内回复。如仍不满意，可以向澳大利亚信息专员办公室（OAIC，<a href="https://www.oaic.gov.au">www.oaic.gov.au</a>）投诉。</li>
+  </ul>
+
+  <h2>11. 未成年人</h2>
+  <p>本服务面向 18 岁及以上的用户，不针对未成年人。如果你认为有未成年人向我们提供了个人信息，请联系我们删除。</p>
+
+  <h2>12. 政策更新</h2>
+  <p>我们可能会更新本政策。重大变更会在 App 内或通过其他合理方式提前通知你。更新后继续使用本服务，即表示你同意更新后的政策。</p>
+
+  <h2>13. 联系我们</h2>
+  <p>Everyone Delivery Pty Ltd<br>邮箱：[联系邮箱]</p>
 
   <hr>
 
-  <h1>Privacy Policy</h1>
-  <p class="muted">Call Assistant · Everyone Delivery Pty Ltd · Updated October 2026</p>
+  <h1 id="en">Privacy Policy</h1>
+  <p class="muted">Call Assistant · Everyone Delivery Pty Ltd · Effective 22 October 2026</p>
 
-  <h2>What we collect</h2>
+  <div class="note">
+    <strong>In short</strong>
+    <ul>
+      <li>We collect only what we need to answer your calls: your phone number, assistant settings, records of calls the AI answered, and your subscription status.</li>
+      <li>Calls are <strong>not recorded</strong>. We keep a text transcript and an AI summary.</li>
+      <li>We do not sell your data or use it for advertising, and we do not access your contacts, messages or location.</li>
+      <li>You can delete your account in the app at any time, and all your data is deleted straight away.</li>
+    </ul>
+  </div>
+
+  <h2>1. Who we are</h2>
+  <p>Call Assistant (the "Service") is operated by Everyone Delivery Pty Ltd ("we", "us"). We comply with the Privacy Act 1988 (Cth) and the Australian Privacy Principles (APPs). This policy explains what personal information we collect, why, how we use and protect it, and your rights.</p>
+
+  <h2>2. Information we collect</h2>
   <ul>
-    <li><strong>Your phone number</strong>, to sign you in with an SMS code and to match forwarded calls to your account.</li>
-    <li><strong>Calls answered by the AI</strong>: caller number, time, the forwarding number supplied by your carrier, a text transcript, and an AI-generated summary and category (for example, suspected scam).</li>
-    <li><strong>Subscription details</strong> from Apple: transaction ID, product and expiry date. Payment is handled by Apple; we never see your card details.</li>
+    <li><strong>Account:</strong> your mobile number, verified by SMS code, used to sign you in and to match forwarded calls to your account.</li>
+    <li><strong>Assistant settings:</strong> the name you give and your voice choice (male/female, style), used when the AI answers.</li>
+    <li><strong>Call records:</strong> caller number, time, the forwarding number supplied by your carrier, duration, a text transcript, and an AI-generated summary and category (for example, suspected scam).</li>
+    <li><strong>Blocked numbers</strong> you choose to block.</li>
+    <li><strong>Subscription:</strong> Apple transaction ID, product, expiry date and auto-renew status.</li>
+    <li><strong>Technical:</strong> app version, request times, IP addresses and similar server logs, for security and troubleshooting.</li>
   </ul>
-  <p>We do <strong>not</strong> store call recordings, and we do not access your contacts, messages or location.</p>
+  <p>We do <strong>not</strong> collect call audio, your contacts, messages, location or photos, or card details (payments are handled entirely by Apple).</p>
 
-  <h2>How we use it</h2>
-  <p>Only to provide the service: answering forwarded calls, showing you summaries, and checking your subscription. We do not sell your data or use it for advertising. The AI tells callers it is an AI assistant.</p>
+  <h2>3. Information about callers</h2>
+  <p>When the AI answers, it processes the caller's number and what they say. The AI tells callers they are speaking to an AI assistant. This information is used only to pass the message on to you, is stored under your account and is deleted with it. Callers may contact us to ask about or delete records relating to them.</p>
 
-  <h2>Service providers</h2>
-  <p>Supabase (database, Sydney), Twilio (call forwarding and SMS codes), Vapi and OpenAI (real-time speech and conversation, United States), Vercel (hosting) and Apple (payments).</p>
+  <h2>4. How we use information</h2>
+  <p>To provide the Service (answering forwarded calls, summarising them, flagging scams and sales calls), manage your account and subscription, keep the Service secure and prevent abuse, troubleshoot and improve the Service using aggregated or de-identified data, and meet legal obligations. We do not sell or rent your personal information, use it for advertising, or use your calls to train our own AI models.</p>
 
-  <h2>Retention and deletion</h2>
-  <p>Call records are kept until you delete your account. You can do this at any time in the app under Me › Delete Account; your phone number, call records and subscription records are permanently deleted straight away. Deleting your account does not cancel an Apple subscription — cancel it in iPhone Settings › Apple Account › Subscriptions. To export your data, contact [联系邮箱].</p>
+  <h2>5. AI processing</h2>
+  <p>Real-time speech recognition, conversation and summarisation are performed by third-party AI services (see section 6). Call audio is processed in real time only; recording is turned off and we do not store audio. AI summaries and categories may be inaccurate, so rely on the full transcript. Under OpenAI's API data policy, data submitted through the API is not used to train its models by default.</p>
+
+  <h2>6. Who we share information with</h2>
+  <p>We share information only with service providers that help us run the Service, under contracts requiring them to protect it and use it only to provide services to us: Supabase (database and sign-in, Sydney, Australia), Vercel (hosting, Sydney, with some services possibly in the United States), Twilio (call forwarding and SMS codes, United States and elsewhere), Vapi (AI voice platform, United States), OpenAI (speech, conversation and summaries, United States) and Apple (payments). Otherwise we disclose personal information only where required by law, to protect the safety of users or the public, or in a business transfer, and will notify you where the law allows.</p>
+
+  <h2>7. Overseas disclosure</h2>
+  <p>As listed above, some information is processed outside Australia, mainly in the United States. By using the Service you acknowledge and consent to this. We take reasonable steps to ensure overseas providers protect your information to a standard comparable to the APPs.</p>
+
+  <h2>8. Retention</h2>
+  <p>Account information, assistant settings, call records and blocked numbers are kept until you delete your account. Subscription records are deleted with your account, except transaction records we must keep by law. Server logs are kept only briefly for troubleshooting and then deleted automatically.</p>
+
+  <h2>9. Security</h2>
+  <p>Data is encrypted in transit (HTTPS) and database access is restricted to our servers. Sign-in credentials are stored only in your phone's Keychain. No system is perfectly secure; if a data breach is likely to cause you serious harm, we will notify you and the Office of the Australian Information Commissioner (OAIC) under the Notifiable Data Breaches scheme.</p>
+
+  <h2>10. Your rights</h2>
+  <ul>
+    <li><strong>Access and correction:</strong> view and change your name and voice settings in the app; contact us about other information.</li>
+    <li><strong>Deletion:</strong> delete your account at any time under Me › Delete Account; your phone number, call records and subscription records are permanently deleted straight away. This does not cancel an Apple subscription — cancel it in iPhone Settings › Apple Account › Subscriptions.</li>
+    <li><strong>Export:</strong> contact us to export your call records.</li>
+    <li><strong>Complaints:</strong> contact us first and we will respond within 30 days. If you are not satisfied, you can complain to the OAIC at <a href="https://www.oaic.gov.au">www.oaic.gov.au</a>.</li>
+  </ul>
+
+  <h2>11. Children</h2>
+  <p>The Service is intended for people aged 18 and over and is not directed at children. If you believe a child has given us personal information, contact us and we will delete it.</p>
+
+  <h2>12. Changes</h2>
+  <p>We may update this policy. We will give reasonable notice of significant changes in the app or by other reasonable means. Continuing to use the Service after an update means you accept the updated policy.</p>
+
+  <h2>13. Contact us</h2>
+  <p>Everyone Delivery Pty Ltd<br>Email: [联系邮箱]</p>
 </main>
 </body>
 </html>

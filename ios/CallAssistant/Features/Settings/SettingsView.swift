@@ -27,8 +27,8 @@ struct SettingsView: View {
                     if let phone = session.phone {
                         LabeledContent("手机号", value: PhoneFormat.display(phone))
                     }
-                    if let number = session.config?.twilioNumber {
-                        LabeledContent("代接号码", value: PhoneFormat.display(number))
+                    if let config = session.config {
+                        LabeledContent("代接号码", value: config.twilioNumberLabel)
                     }
                 }
 
@@ -63,7 +63,7 @@ struct SettingsView: View {
 
                 Section("关于") {
                     LabeledContent("版本", value: version)
-                    NavigationLink("隐私说明") { PrivacyView() }
+                    NavigationLink("隐私与条款") { PrivacyView() }
                 }
 
                 Section {
@@ -85,15 +85,26 @@ struct SettingsView: View {
 }
 
 private struct PrivacyView: View {
+    @Environment(AppSession.self) private var session
+
     var body: some View {
         List {
             Section {
-                Text("AI 接听时不会说出你的姓、住址、证件号、账户等任何个人信息，也不会替你做任何承诺。")
-                Text("通话不保存录音，只保存文字转写和摘要，存放在你自己的 Supabase 数据库里。")
-                Text("登录凭证只保存在这台手机的钥匙串中。手机号只用于登录，以及确认被转移过来的来电是你的。")
+                Text("AI 接听时只说你设置的称呼，不会透露你的姓、住址、证件号、账户等任何个人信息，也不会替你做任何承诺。")
+                Text("通话不保存录音，只保存文字转写和摘要，用来在 App 里展示给你。")
+                Text("手机号只用于登录，以及确认转过来的电话是你的。我们不出售你的数据，也不用于广告。")
+                Text("你可以随时在「我的 › 删除账户」里删除账户和全部来电记录。")
+            }
+            Section {
+                if let privacy = LegalLinks.privacy(server: session.serverURL) {
+                    Link("隐私政策", destination: privacy)
+                }
+                if let terms = LegalLinks.terms(server: session.serverURL) {
+                    Link("用户协议", destination: terms)
+                }
             }
         }
-        .navigationTitle("隐私说明")
+        .navigationTitle("隐私与条款")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
