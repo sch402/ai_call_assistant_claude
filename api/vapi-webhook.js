@@ -1,8 +1,11 @@
-// Vapi 的服务端回调。原型只处理通话结束报告（end-of-call-report），把转写和分析结果写进通话卡片。
+// Vapi 的服务端回调：
+//   assistant-request   来电接通时，按这位用户的设置（称呼、性别、音色）返回助理配置
+//   end-of-call-report  通话结束报告，把转写和分析结果写进通话卡片
 import { db, logDbError } from '../lib/db.js';
 import { env } from '../lib/env.js';
 import { bodyOf, sendJson, timingSafeEqualString } from '../lib/http.js';
-import { findCallSids, pickByCallerAndTime } from '../lib/match.js';
+import { findCallSids, findHeaderValue, pickByCallerAndTime } from '../lib/match.js';
+import { assistantForProfile, PROFILE_FIELDS } from '../lib/profile.js';
 import { samePhone } from '../lib/phone.js';
 
 function authorized(req) {
@@ -25,6 +28,31 @@ function durationOf(message) {
   return null;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// 找出这通电话属于哪位用户：优先用 /api/twilio-voice 通过 SIP 头带来的用户 ID，
+// 其次用 CallSid 查通话记录。Vapi 只给约 7.5 秒，所以查询出错或找不到时直接用默认设置，绝不让电话失败。
+async function assistantFor(message) {
+  try {
+    let userId = findHeaderValue(message, 'x-user_id');
+    if (!userId) {
+      const sids = findCallSids(message);
+      if (sids.length) {
+        const call = await db().from('calls').select('user_id').in('call_sid', sids).limit(1);
+        logDbError('calls.select for assistant-request', call);
+        userId = call.data?.[0]?.user_id || null;
+      }
+    }
+    if (userId && UUID.test(userId)) {
+      const profile = await db().from('profiles').select(PROFILE_FIELDS).eq('user_id', userId).maybeSingle();
+      if (!logDbError('profiles.select for assistant-request', profile)) return assistantForProfile(profile.data);
+    }
+  } catch (err) {
+    console.error('assistant-request 查询用户设置失败', err.message);
+  }
+  return assistantForProfile(null);
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).send('Method Not Allowed');
@@ -36,6 +64,10 @@ export default async function handler(req, res) {
   }
 
   const message = bodyOf(req).message || {};
+  if (message.type === 'assistant-request') {
+    sendJson(res, 200, { assistant: await assistantFor(message) });
+    return;
+  }
   if (message.type !== 'end-of-call-report') {
     sendJson(res, 200, { ok: true, ignored: message.type || null });
     return;
@@ -92,7 +124,7 @@ export default async function handler(req, res) {
 
   const written = row
     ? await db().from('calls').update({ ...update, match_method: method }).eq('id', row.id)
-    : // 对不上任何来电：单独保存，不归属给机主，便于排查。
+    : // 对不上任何来电：单独保存，不归属给任何用户，便于排查。
       await db().from('calls').insert({
         ...update,
         from_number: callerNumber,

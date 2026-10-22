@@ -68,6 +68,7 @@
     <div class="bar">
       <button id="refresh">刷新</button>
       <button id="setup">同步配置到 Vapi</button>
+      <input id="test-to" type="tel" placeholder="被测手机号 +61…" style="width:180px">
       <button id="test">测试呼叫转移</button>
       <button id="logout">退出</button>
     </div>
@@ -202,10 +203,14 @@ $('setup').onclick = async () => {
   } catch (e) { status('同步失败', e.message); }
   $('setup').disabled = false;
 };
+try { $('test-to').value = localStorage.getItem('testTo') || ''; } catch (e) {}
 $('test').onclick = async () => {
-  if (!confirm('将用 Twilio 号码拨打你的手机。来电时请按拒接或不接，约 1 分钟后结果会自动显示。')) return;
+  const to = $('test-to').value.trim();
+  if (!to) { status('请先填写被测手机号', '填写已设置呼叫转移的手机号，E.164 格式，例如 +61412345678。'); return; }
+  if (!confirm(`将用 Twilio 号码拨打 ${to}。来电时请按拒接或不接，约 1 分钟后结果会自动显示。`)) return;
+  try { localStorage.setItem('testTo', to); } catch (e) {}
   try {
-    await api('/api/admin/check-forwarding', { method: 'POST' });
+    await api('/api/admin/check-forwarding', { method: 'POST', body: JSON.stringify({ to }) });
     status('测试电话已拨出', '手机响起后按拒接（测占线转移）或一直不接（测无人接听转移）。结果会在约 1 分钟内自动出现在下方。');
     [20, 45, 70, 100].forEach((s) => setTimeout(load, s * 1000));
     load();

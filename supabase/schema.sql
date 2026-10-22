@@ -10,7 +10,7 @@ create table if not exists public.calls (
   from_number text,                     -- 来电方号码
   to_number text,                       -- 我们的 Twilio 号码
   forwarded_from text,                  -- 运营商带来的转移来源（可能为空）
-  attributed boolean default false,     -- 转移来源是否确认等于机主号码
+  attributed boolean default false,     -- 转移来源是否确认属于某位用户
   stir_verstat text,                    -- 来电号码认证结果（美国运营商才有）
   caller_country text,
   status text,                          -- answering / completed / blocked
@@ -58,7 +58,7 @@ create table if not exists public.profiles (
 );
 alter table public.profiles enable row level security;
 
--- 来电归属给哪位用户；为空表示运营商没带转移来源或没匹配到用户（原型阶段算机主的）。
+-- 来电归属给哪位用户；为空表示运营商没带转移来源或没匹配到任何用户。
 alter table public.calls add column if not exists user_id uuid references auth.users (id) on delete set null;
 create index if not exists calls_user_id_created_at_idx on public.calls (user_id, created_at desc);
 
@@ -82,3 +82,20 @@ alter table public.subscriptions enable row level security;
 alter table public.subscriptions add column if not exists environment text;      -- Production / Sandbox
 alter table public.subscriptions add column if not exists auto_renew boolean;    -- 用户是否关闭了自动续费
 alter table public.subscriptions add column if not exists last_signed_at timestamptz;  -- 苹果签名时间，用来丢弃乱序到达的旧通知
+
+-- ---- 每位用户的 AI 助手设置（lib/profile.js）----
+-- display_name 为空 = 还没完成 App 里的首次引导；来电时没有设置的用户用默认男声、不带称呼。
+alter table public.profiles add column if not exists display_name text;
+alter table public.profiles add column if not exists gender text check (gender in ('male', 'female'));
+alter table public.profiles add column if not exists voice_style text not null default 'mature'
+  check (voice_style in ('mature', 'calm', 'young'));
+
+-- ---- 每位用户自己的黑名单 ----
+-- blocklist 是网页面板维护的全局黑名单（对所有人生效）；这里是用户在 App 里拉黑的号码，只影响打给他的电话。
+create table if not exists public.user_blocks (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  number text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, number)
+);
+alter table public.user_blocks enable row level security;

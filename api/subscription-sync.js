@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   try {
     const transaction = await verifyTransaction(signedTransaction);
     const row = await applyTransaction({ transaction, requestingUserId: auth.user.id });
-    const subscription = entitlementOf(row, { isOwner: auth.user.isOwner });
+    const subscription = entitlementOf(row);
     sendJson(res, 200, { ok: true, subscription: { ...subscription, graceDays: GRACE_DAYS } });
   } catch (err) {
     const status = err instanceof AppStoreError ? err.status : 500;

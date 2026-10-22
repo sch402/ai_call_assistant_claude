@@ -48,6 +48,14 @@ struct APIClient {
         return response.subscription
     }
 
+    /// 修改 AI 助手设置，只发送传了的字段。返回保存后的设置。
+    func updateProfile(name: String? = nil, gender: VoiceGender? = nil, voiceStyle: VoiceStyle? = nil) async throws -> AssistantProfile {
+        struct Body: Encodable { let name: String?; let gender: VoiceGender?; let voiceStyle: VoiceStyle? }
+        struct Response: Decodable { let profile: AssistantProfile }
+        let response: Response = try await send("api/profile", method: "PATCH", body: Body(name: name, gender: gender, voiceStyle: voiceStyle))
+        return response.profile
+    }
+
     /// 永久删除账户和来电记录
     func deleteAccount() async throws {
         let _: OKResponse = try await send("api/account", method: "DELETE", body: Optional<String>.none)

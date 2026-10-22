@@ -13,7 +13,7 @@ struct DeleteAccountView: View {
 
     /// 还在续费的苹果订阅：删账户不会停止扣费
     private var hasRenewingSubscription: Bool {
-        guard session.config?.isOwner != true, let sub = session.config?.subscription else { return false }
+        guard let sub = session.config?.subscription else { return false }
         return sub.isAnswering && sub.expiresAt != nil && sub.autoRenew != false
     }
 

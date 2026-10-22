@@ -33,28 +33,31 @@ export default async function handler(req, res) {
   const calledCountry = params.CalledCountry || params.ToCountry || null;
   const rawForwardedFrom = params.ForwardedFrom || null;
   const forwardedFrom = toE164(rawForwardedFrom, calledCountry) || rawForwardedFrom;
-  const owner = env('OWNER_PHONE_NUMBER');
   const ourNumber = env('TWILIO_PHONE_NUMBER');
 
-  // 呼叫转移测试：我们自己的号码打给机主，机主不接，电话又被转回来。
-  // 有的运营商转移时会把来电显示改成机主号码，所以测试进行中的几分钟内也认这种情况。
+  // 呼叫转移测试（网页面板发起）：我们自己的号码打给被测手机，对方不接，电话又被转回来。
+  // 有的运营商转移时会把来电显示改成被测号码，所以测试进行中的几分钟内也认这种情况。
   const since = new Date(Date.now() - TEST_WINDOW_SECONDS * 1000).toISOString();
   const pending = await db()
     .from('forward_tests')
-    .select('id')
+    .select('raw_params')
     .eq('raw_params->>kind', 'outbound')
     .gte('created_at', since)
+    .order('created_at', { ascending: false })
     .limit(1);
   logDbError('forward_tests.select pending', pending);
   const testActive = Boolean(pending.data?.length);
+  const testTarget = pending.data?.[0]?.raw_params?.to || null;
 
-  if (isForwardedTestCall({ from, forwardedFrom, ourNumber, ownerNumber: owner, testActive })) {
+  if (isForwardedTestCall({ from, forwardedFrom, ourNumber, targetNumber: testTarget, testActive })) {
     logDbError(
       'forward_tests.insert inbound',
       await db().from('forward_tests').insert({
         call_sid: callSid,
         forwarded_from: forwardedFrom,
-        matched_owner: forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner }),
+        matched_owner: testTarget
+          ? forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: testTarget })
+          : null,
         raw_params: { ...params, kind: 'inbound' },
       })
     );
@@ -72,31 +75,35 @@ export default async function handler(req, res) {
     lookupFailed = Boolean(logDbError('profiles.select by forwarded_from', profile));
     userId = profile.data?.user_id || null;
   }
-  // 机主可能还没在 App 里登录过（profiles 里没有他），所以仍然单独和 OWNER_PHONE_NUMBER 比对一次。
-  const ownerMatch = forwardedBelongsTo({ forwardedFrom: rawForwardedFrom, calledCountry, userNumber: owner });
-  const attributed = Boolean(userId) || ownerMatch;
+  const attributed = Boolean(userId);
 
   // 订阅：到期后宽限 3 天，之后拒接。查询出错时按有效处理，宁可多接也不能因为数据库故障漏接付费用户。
-  let entitlement = entitlementOf(null, { isOwner: ownerMatch });
-  if (userId && !ownerMatch) {
+  let entitlement = entitlementOf(null);
+  if (userId) {
     const sub = await db().from('subscriptions').select('status,expires_at').eq('user_id', userId).maybeSingle();
     entitlement = logDbError('subscriptions.select', sub) ? { state: 'active' } : entitlementOf(sub.data);
   }
   const decision = decideCall({
     userId,
-    ownerMatch,
     entitlement,
     hasForwardedFrom: Boolean(forwardedE164),
     // 查不了用户表时同样先接听
     acceptUnattributed: lookupFailed || env('ACCEPT_UNATTRIBUTED_CALLS', 'false') === 'true',
   });
 
+  // 黑名单：网页面板的全局黑名单（blocklist）+ 这位用户自己拉黑的号码（user_blocks）。
   // 数据库出错时只记日志，电话照常交给 AI 接听，不能因为记录失败而漏接。
-  let blocked = null;
+  let blocked = false;
   if (decision.answer) {
-    const blockResult = await db().from('blocklist').select('number').eq('number', from).maybeSingle();
-    logDbError('blocklist.select', blockResult);
-    blocked = blockResult.data;
+    const [global, mine] = await Promise.all([
+      db().from('blocklist').select('number').eq('number', from).maybeSingle(),
+      userId
+        ? db().from('user_blocks').select('number').eq('user_id', userId).eq('number', from).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    logDbError('blocklist.select', global);
+    logDbError('user_blocks.select', mine);
+    blocked = Boolean(global.data || mine.data);
   }
   const status = blocked ? 'blocked' : decision.status;
 
@@ -126,7 +133,8 @@ export default async function handler(req, res) {
     res,
     dialVapi({
       sipUri: sipUri(),
-      headers: { 'X-call_ref': callSid },
+      // /api/vapi-webhook 收到 assistant-request 时靠 X-user_id 找到这位用户的称呼和声音设置
+      headers: { 'X-call_ref': callSid, 'X-user_id': userId },
       timeLimitSeconds: Number(env('MAX_CALL_SECONDS', '300')),
     })
   );

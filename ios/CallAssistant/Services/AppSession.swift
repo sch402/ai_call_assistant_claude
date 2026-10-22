@@ -10,6 +10,8 @@ final class AppSession {
     let serverURL: URL?
     private(set) var authConfig: AuthConfig?
     private(set) var config: AppConfig?
+    /// 读取配置失败的原因（只在还没有配置时显示，避免一直卡在加载页）
+    private(set) var configError: String?
     /// 当前标签页。放在这里是为了让提示条能跳到「代接设置」。
     var selectedTab: AppTab = .calls
     /// 显示订阅页（来电助手 Pro）
@@ -140,7 +142,19 @@ final class AppSession {
 
     func refreshConfig() async {
         guard let client else { return }
-        if let fetched = try? await client.appConfig() { config = fetched }
+        do {
+            config = try await client.appConfig()
+            configError = nil
+        } catch {
+            configError = error.localizedDescription
+        }
+    }
+
+    /// 修改 AI 助手设置（首次引导和「我的 › AI 助手」共用），成功后立即更新界面。
+    func updateProfile(name: String? = nil, gender: VoiceGender? = nil, voiceStyle: VoiceStyle? = nil) async throws {
+        guard let client else { throw AuthError.sessionExpired }
+        let saved = try await client.updateProfile(name: name, gender: gender, voiceStyle: voiceStyle)
+        config?.profile = saved
     }
 
     /// 允许只填域名：自动补 https://，去掉末尾的 /。

@@ -16,19 +16,53 @@ struct CallAssistantApp: App {
     }
 }
 
-/// 未登录时显示登录页，登录后进入主界面。
+/// 未登录 → 登录页；登录后先读配置；还没设置称呼和声音 → 首次引导；否则进入主界面。
 struct RootView: View {
     @Environment(AppSession.self) private var session
 
+    private enum Stage { case login, loading, onboarding, main }
+
+    private var stage: Stage {
+        guard session.isSignedIn else { return .login }
+        guard let config = session.config else { return .loading }
+        return config.profile?.complete == false ? .onboarding : .main
+    }
+
     var body: some View {
         Group {
-            if session.isSignedIn {
-                MainTabView()
-            } else {
-                LoginView()
+            switch stage {
+            case .login: LoginView()
+            case .loading: ConfigLoadingView()
+            case .onboarding: OnboardingView()
+            case .main: MainTabView()
             }
         }
-        .animation(.default, value: session.isSignedIn)
+        .animation(.default, value: stage)
+    }
+}
+
+/// 登录后读取配置。失败时可以重试或退出，不会一直转圈。
+private struct ConfigLoadingView: View {
+    @Environment(AppSession.self) private var session
+
+    var body: some View {
+        VStack(spacing: 16) {
+            if let error = session.configError {
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("重试") { Task { await session.refreshConfig() } }
+                    .buttonStyle(.borderedProminent)
+                Button("退出登录") { Task { await session.signOut() } }
+                    .font(.footnote)
+            } else {
+                ProgressView()
+            }
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task { await session.refreshConfig() }
     }
 }
 

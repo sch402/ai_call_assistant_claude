@@ -15,12 +15,16 @@ export default async function handler(req, res) {
     res.status(403).send('Invalid signature');
     return;
   }
+  // 保留发起测试时记下的被测号码（raw_params.to）
+  const existing = await db().from('forward_tests').select('raw_params').eq('call_sid', params.CallSid).maybeSingle();
+  logDbError('forward_tests.select outbound', existing);
   logDbError(
     'forward_tests.update outbound status',
     await db()
       .from('forward_tests')
       .update({
         raw_params: {
+          to: existing.data?.raw_params?.to || null,
           kind: 'outbound',
           status: params.CallStatus || null,
           duration: Number(params.CallDuration || 0),

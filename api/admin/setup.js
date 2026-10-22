@@ -1,9 +1,10 @@
 // 一键初始化 / 同步配置（可重复执行）：
-//   1. 在 Vapi 创建或更新语音助理
-//   2. 在 Vapi 创建 SIP 接入号（sip:<用户名>@sip.vapi.ai），并绑定到助理
+//   1. 在 Vapi 创建或更新模板助理，校验配置是否有效
+//   2. 在 Vapi 创建 SIP 接入号（sip:<用户名>@sip.vapi.ai），来电时向 /api/vapi-webhook 要这位用户的助理配置
 //   3. 把 Twilio 号码的来电 webhook 指向本服务
 import twilio from 'twilio';
-import { assistantConfig, ASSISTANT_NAME_IN_VAPI } from '../../lib/assistant.js';
+import { ASSISTANT_NAME_IN_VAPI } from '../../lib/assistant.js';
+import { assistantForProfile } from '../../lib/profile.js';
 import { env, baseUrl, sipUri } from '../../lib/env.js';
 import { checkDashboardToken, sendJson } from '../../lib/http.js';
 import { asList, vapi } from '../../lib/vapi.js';
@@ -21,37 +22,35 @@ export default async function handler(req, res) {
 
   const steps = [];
   try {
-    // 1. 助理
-    const config = assistantConfig({
-      // 机主的名字（来电方认识你时用的名字，例如英文名）。助理自己没有名字，需要自我介绍时说 "<OWNER_NAME>'s AI assistant"。
-      ownerName: env('OWNER_NAME', ''),
-      voice: env('ASSISTANT_VOICE', 'male-mature'),
-      serverUrl: `${baseUrl()}/api/vapi-webhook`,
-      webhookSecret: env('VAPI_WEBHOOK_SECRET'),
-      maxCallSeconds: Number(env('MAX_CALL_SECONDS', '300')),
-    });
+    // 1. 模板助理：用默认设置创建或更新，只为让 Vapi 校验配置是否有效（有错这里就会报出来）。
+    //    来电时并不用它，而是每通电话按用户设置临时生成（见 /api/vapi-webhook 的 assistant-request）。
+    const config = assistantForProfile(null);
     const assistants = asList(await vapi('GET', '/assistant?limit=100'));
     const existing = assistants.find((a) => a.name === ASSISTANT_NAME_IN_VAPI);
     const assistant = existing
       ? await vapi('PATCH', `/assistant/${existing.id}`, config)
       : await vapi('POST', '/assistant', config);
-    steps.push(`${existing ? '已更新' : '已创建'} Vapi 助理 ${assistant.id}`);
+    steps.push(`配置校验通过（${existing ? '已更新' : '已创建'}模板助理 ${assistant.id}）`);
 
-    // 2. SIP 接入号
+    // 2. SIP 接入号：不绑定固定助理，来电时 Vapi 向我们的服务要配置（assistant-request）
     const uri = sipUri();
+    const routing = {
+      assistantId: null,
+      server: { url: `${baseUrl()}/api/vapi-webhook`, secret: env('VAPI_WEBHOOK_SECRET') },
+    };
     const numbers = asList(await vapi('GET', '/phone-number?limit=100'));
     const sipNumber = numbers.find((n) => n.sipUri === uri);
     if (sipNumber) {
-      await vapi('PATCH', `/phone-number/${sipNumber.id}`, { assistantId: assistant.id });
-      steps.push(`SIP 接入号已存在，已绑定到助理：${uri}`);
+      await vapi('PATCH', `/phone-number/${sipNumber.id}`, routing);
+      steps.push(`SIP 接入号已存在，来电时按用户设置生成助理：${uri}`);
     } else {
       const created = await vapi('POST', '/phone-number', {
         provider: 'vapi',
         sipUri: uri,
-        assistantId: assistant.id,
         name: 'AI Call Assistant SIP',
+        ...routing,
       });
-      steps.push(`已创建 SIP 接入号 ${created.id}：${uri}`);
+      steps.push(`已创建 SIP 接入号 ${created.id}，来电时按用户设置生成助理：${uri}`);
     }
 
     // 3. Twilio 来电 webhook

@@ -3,11 +3,10 @@ import SwiftUI
 
 struct AppConfig: Decodable, Equatable {
     let twilioNumber: String
-    let ownerName: String?
     /// 当前登录的手机号（E.164）
     let phone: String?
-    /// 是否机主（OWNER_PHONE_NUMBER）。原型阶段只有机主能拉黑号码。
-    let isOwner: Bool?
+    /// AI 助手设置：称呼、性别、音色
+    var profile: AssistantProfile?
     var subscription: SubscriptionInfo?
 }
 

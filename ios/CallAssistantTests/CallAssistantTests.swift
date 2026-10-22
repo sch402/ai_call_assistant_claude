@@ -126,7 +126,8 @@ final class LoginTests: XCTestCase {
 final class SubscriptionTests: XCTestCase {
     func testAppConfigWithSubscription() throws {
         let json = """
-        {"twilioNumber":"+61258496666","ownerName":"","phone":"+61478558140","isOwner":false,
+        {"twilioNumber":"+61258496666","phone":"+61478558140",
+         "profile":{"name":"Amy","gender":"female","voiceStyle":"calm","complete":true},
          "subscription":{"state":"grace","expiresAt":"2026-10-18T00:00:00.000Z","graceEndsAt":"2026-10-21T00:00:00.000Z","graceDays":3},
          "apiVersion":3}
         """
@@ -136,13 +137,14 @@ final class SubscriptionTests: XCTestCase {
         XCTAssertNotNil(config.subscription?.graceEndsAt)
     }
 
-    func testOwnerSubscriptionHasNoDates() throws {
+    func testNonExpiringSubscriptionHasNoDates() throws {
         let json = """
-        {"twilioNumber":"+61258496666","isOwner":true,"subscription":{"state":"active","expiresAt":null,"graceEndsAt":null,"graceDays":3}}
+        {"twilioNumber":"+61258496666","subscription":{"state":"active","expiresAt":null,"graceEndsAt":null,"graceDays":3}}
         """
         let config = try JSONDecoder.api.decode(AppConfig.self, from: Data(json.utf8))
         XCTAssertEqual(config.subscription?.state, .active)
         XCTAssertNil(config.subscription?.expiresAt)
+        XCTAssertNil(config.profile)
     }
 
     func testUnpaidCallsAreLabelled() throws {
@@ -151,5 +153,28 @@ final class SubscriptionTests: XCTestCase {
         XCTAssertTrue(call.isUnpaid)
         XCTAssertEqual(call.headline, "订阅已过期，这通电话没有接听")
         XCTAssertFalse(call.needsAttention)
+    }
+}
+
+final class AssistantProfileTests: XCTestCase {
+    func testProfileDecoding() throws {
+        let json = """
+        {"twilioNumber":"+61258496666","phone":"+61478558140",
+         "profile":{"name":"Amy","gender":"female","voiceStyle":"calm","complete":true}}
+        """
+        let profile = try XCTUnwrap(JSONDecoder.api.decode(AppConfig.self, from: Data(json.utf8)).profile)
+        XCTAssertEqual(profile.name, "Amy")
+        XCTAssertEqual(profile.gender, .female)
+        XCTAssertEqual(profile.voiceStyle, .calm)
+        XCTAssertTrue(profile.complete)
+        XCTAssertEqual(profile.voiceSummary, "女声 · 稳重")
+    }
+
+    func testNewUserNeedsOnboarding() throws {
+        let json = #"{"name":null,"gender":null,"voiceStyle":"mature","complete":false}"#
+        let profile = try JSONDecoder.api.decode(AssistantProfile.self, from: Data(json.utf8))
+        XCTAssertFalse(profile.complete)
+        XCTAssertNil(profile.gender)
+        XCTAssertEqual(profile.voiceSummary, "成熟")
     }
 }

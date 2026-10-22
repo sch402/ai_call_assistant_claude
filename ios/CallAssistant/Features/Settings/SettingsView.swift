@@ -27,30 +27,37 @@ struct SettingsView: View {
                     if let phone = session.phone {
                         LabeledContent("手机号", value: PhoneFormat.display(phone))
                     }
-                    if let name = session.config?.ownerName, !name.isEmpty {
-                        LabeledContent("称呼", value: name)
-                    }
                     if let number = session.config?.twilioNumber {
                         LabeledContent("代接号码", value: PhoneFormat.display(number))
                     }
                 }
 
-                // 机主始终有效，不需要订阅
-                if session.config?.isOwner != true {
-                    Section("会员") {
-                        Button { session.showSubscription = true } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "sparkles")
-                                    .font(.title2)
-                                    .foregroundStyle(Color.accentColor)
-                                    .frame(width: 36)
-                                Text("来电助手 Pro").font(.headline).foregroundStyle(Color.primary)
-                                Spacer()
-                                Text(membershipStatus).font(.subheadline).foregroundStyle(.secondary)
-                                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-                            }
-                            .padding(.vertical, 4)
+                Section("AI 助手") {
+                    NavigationLink {
+                        AssistantSettingsView()
+                    } label: {
+                        LabeledContent("称呼与声音") {
+                            Text([session.config?.profile?.name, session.config?.profile?.voiceSummary]
+                                .compactMap { $0 }
+                                .filter { !$0.isEmpty }
+                                .joined(separator: " · "))
                         }
+                    }
+                }
+
+                Section("会员") {
+                    Button { session.showSubscription = true } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "sparkles")
+                                .font(.title2)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 36)
+                            Text("来电助手 Pro").font(.headline).foregroundStyle(Color.primary)
+                            Spacer()
+                            Text(membershipStatus).font(.subheadline).foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
 
