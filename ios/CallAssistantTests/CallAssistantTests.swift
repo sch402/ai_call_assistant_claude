@@ -178,3 +178,11 @@ final class AssistantProfileTests: XCTestCase {
         XCTAssertEqual(profile.voiceSummary, "成熟")
     }
 }
+
+final class DialURLTests: XCTestCase {
+    func testForwardingCodesArePercentEncoded() {
+        XCTAssertEqual(ForwardingCode.dialURL(for: "**004*+61258496666**20#")?.absoluteString,
+                       "tel:%2A%2A004%2A%2B61258496666%2A%2A20%23")
+        XCTAssertEqual(ForwardingCode.dialURL(for: "##004#")?.absoluteString, "tel:%23%23004%23")
+    }
+}

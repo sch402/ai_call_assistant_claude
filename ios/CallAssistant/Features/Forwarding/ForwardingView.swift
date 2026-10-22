@@ -1,3 +1,4 @@
+import CallKit
 import SwiftUI
 import UIKit
 
@@ -130,10 +131,22 @@ struct ForwardingView: View {
                     Text("设置 › App › 电话 › 筛选陌生来电").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            Button(action: openPhoneSettings) {
+                Label("打开「电话」设置", systemImage: "gearshape")
+            }
         } header: {
             Text("iPhone 设置检查")
         } footer: {
-            Text("这两项开着时，iPhone 会自己先接听，电话就不会转给 AI。")
+            Text("这两项开着时，iPhone 会自己先接听，电话就不会转给 AI。打开后点左上角返回「电话」，就能看到这两项。")
+        }
+    }
+
+    /// iOS 没有公开的方法直接打开「设置 › App › 电话」（私有链接会被审核拒绝）。
+    /// 用 CallKit 的公开方法打开「电话 › 来电阻止与身份识别」，返回一级就是电话设置；失败时打开本 App 的设置页。
+    private func openPhoneSettings() {
+        CXCallDirectoryManager.sharedInstance.openSettings { error in
+            guard error != nil, let url = URL(string: UIApplication.openSettingsURLString) else { return }
+            DispatchQueue.main.async { UIApplication.shared.open(url) }
         }
     }
 
@@ -167,48 +180,66 @@ struct ActiveCode: Identifiable {
     var id: String { kind.rawValue + code }
 }
 
-/// 复制代码并指导用户到电话 App 拨出。
+/// 拨打或复制代码。先试着直接拨打；iOS 不允许时，复制后到电话 App 粘贴拨出。
 struct DialCodeSheet: View {
     let item: ActiveCode
     let onFinish: (_ completed: Bool) -> Void
 
+    @Environment(\.openURL) private var openURL
     @State private var copied = false
+    @State private var dialRefused = false
 
     private var isQuery: Bool { item.kind == .queryNoReply || item.kind == .queryBusy }
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(item.kind.detail)
-                    .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text(item.kind.detail)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                Button {
-                    copy()
-                } label: {
-                    HStack {
-                        Text(item.code)
-                            .font(.title2.monospaced().weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                        Spacer()
-                        Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
-                            .labelStyle(.titleAndIcon)
-                            .font(.subheadline.weight(.semibold))
+                    Button(action: copy) {
+                        HStack {
+                            Text(item.code)
+                                .font(.title2.monospaced().weight(.semibold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                            Spacer()
+                            Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
+                                .labelStyle(.titleAndIcon)
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .padding()
+                        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     }
-                    .padding()
-                    .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                    .buttonStyle(.plain)
+
+                    Button(action: dial) {
+                        Label("拨打代码", systemImage: "phone.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+
+                    if dialRefused {
+                        Text("这台 iPhone 不允许 App 直接拨打含 * 或 # 的代码，请按下面的步骤粘贴拨出。代码已复制。")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("不能直接拨打时").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        Step(number: 1, text: "打开「电话」App，进入「拨号键盘」")
+                        Step(number: 2, text: "长按号码栏，选「粘贴」，然后拨出")
+                        Step(number: 3, text: isQuery ? "屏幕上会显示运营商返回的当前设置" : "看到运营商「设置成功」的提示后，回到这里确认")
+                    }
                 }
-                .buttonStyle(.plain)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Step(number: 1, text: "点上面的代码复制")
-                    Step(number: 2, text: "打开「电话」App，进入「拨号键盘」")
-                    Step(number: 3, text: "长按号码栏，选「粘贴」，然后拨出")
-                    Step(number: 4, text: isQuery ? "屏幕上会显示运营商返回的当前设置" : "看到运营商「设置成功」的提示后，回到这里确认")
-                }
-
-                Spacer()
-
+                .padding()
+            }
+            .safeAreaInset(edge: .bottom) {
                 if !isQuery {
                     Button {
                         onFinish(true)
@@ -218,9 +249,10 @@ struct DialCodeSheet: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                    .padding()
+                    .background(.bar)
                 }
             }
-            .padding()
             .navigationTitle(item.kind.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -235,6 +267,18 @@ struct DialCodeSheet: View {
     private func copy() {
         UIPasteboard.general.string = item.code
         copied = true
+    }
+
+    /// 系统接受链接时会弹出「呼叫…」确认；不接受（返回 false）时提示改用粘贴。
+    private func dial() {
+        copy()
+        guard let url = ForwardingCode.dialURL(for: item.code) else {
+            dialRefused = true
+            return
+        }
+        openURL(url) { accepted in
+            dialRefused = !accepted
+        }
     }
 }
 

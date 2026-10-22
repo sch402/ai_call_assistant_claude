@@ -64,6 +64,17 @@ enum ForwardingCode: String, CaseIterable, Identifiable {
         }
     }
 
+    /// 直接拨打代码用的 tel: 链接，* # + 做百分号编码。
+    /// 苹果文档说电话 App 不拨含 * 或 # 的号码（防止 App 偷偷改呼叫转移），实际表现随 iOS 版本变化，
+    /// 所以界面上「拨打」只是先试一次，系统拒绝时仍然走复制粘贴。
+    static func dialURL(for code: String) -> URL? {
+        let encoded = code
+            .replacingOccurrences(of: "*", with: "%2A")
+            .replacingOccurrences(of: "#", with: "%23")
+            .replacingOccurrences(of: "+", with: "%2B")
+        return URL(string: "tel:\(encoded)")
+    }
+
     static let waitOptions = [5, 10, 15, 20, 25, 30]
 
     static func clampWait(_ seconds: Int) -> Int {
