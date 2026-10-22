@@ -1,7 +1,8 @@
 import Foundation
 
 /// GSM 呼叫转移代码（澳洲 Telstra、Optus、Vodafone 等都使用这一套）。
-/// iOS 不允许 App 直接拨打含 * 或 # 的号码，所以 App 只负责生成和复制代码，由用户在拨号键盘粘贴拨出。
+/// 查询和取消代码可以由 App 直接拨打；把来电转到某个号码的代码会被 iOS 拦截（Call Forwarding Link Blocked，
+/// 防诈骗保护），只能复制后由用户在拨号键盘粘贴拨出。
 enum ForwardingCode: String, CaseIterable, Identifiable {
     case allConditional
     case noReply
@@ -64,9 +65,16 @@ enum ForwardingCode: String, CaseIterable, Identifiable {
         }
     }
 
+    /// iOS 是否允许 App 直接拨打。实测：查询（*#67#）和取消（##004#）会弹出呼叫确认；
+    /// 设置转移到某个号码的代码会被系统拦截，而且 openURL 仍然返回成功，App 无法察觉，所以按类型判断。
+    var canDialDirectly: Bool {
+        switch self {
+        case .cancelAll, .queryNoReply, .queryBusy: return true
+        case .allConditional, .noReply, .busy, .unreachable: return false
+        }
+    }
+
     /// 直接拨打代码用的 tel: 链接，* # + 做百分号编码。
-    /// 苹果文档说电话 App 不拨含 * 或 # 的号码（防止 App 偷偷改呼叫转移），实际表现随 iOS 版本变化，
-    /// 所以界面上「拨打」只是先试一次，系统拒绝时仍然走复制粘贴。
     static func dialURL(for code: String) -> URL? {
         let encoded = code
             .replacingOccurrences(of: "*", with: "%2A")

@@ -185,4 +185,11 @@ final class DialURLTests: XCTestCase {
                        "tel:%2A%2A004%2A%2B61258496666%2A%2A20%23")
         XCTAssertEqual(ForwardingCode.dialURL(for: "##004#")?.absoluteString, "tel:%23%23004%23")
     }
+
+    func testOnlyQueryAndCancelCodesAreDialedDirectly() {
+        XCTAssertTrue(ForwardingCode.cancelAll.canDialDirectly)
+        XCTAssertTrue(ForwardingCode.queryBusy.canDialDirectly)
+        XCTAssertFalse(ForwardingCode.allConditional.canDialDirectly)
+        XCTAssertFalse(ForwardingCode.noReply.canDialDirectly)
+    }
 }

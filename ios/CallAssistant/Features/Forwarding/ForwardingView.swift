@@ -180,7 +180,7 @@ struct ActiveCode: Identifiable {
     var id: String { kind.rawValue + code }
 }
 
-/// 拨打或复制代码。先试着直接拨打；iOS 不允许时，复制后到电话 App 粘贴拨出。
+/// 拨打或复制代码。查询和取消代码可以直接拨打；开启转移的代码 iOS 会拦截，只能复制后到拨号键盘粘贴拨出。
 struct DialCodeSheet: View {
     let item: ActiveCode
     let onFinish: (_ completed: Bool) -> Void
@@ -215,23 +215,32 @@ struct DialCodeSheet: View {
                     }
                     .buttonStyle(.plain)
 
-                    Button(action: dial) {
-                        Label("拨打代码", systemImage: "phone.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    if item.kind.canDialDirectly {
+                        Button(action: dial) {
+                            Label("拨打代码", systemImage: "phone.fill")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
 
-                    if dialRefused {
-                        Text("这台 iPhone 不允许 App 直接拨打含 * 或 # 的代码，请按下面的步骤粘贴拨出。代码已复制。")
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if dialRefused {
+                            Text("没能直接拨打，请按下面的步骤粘贴拨出。代码已复制。")
+                                .font(.footnote)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("不能直接拨打时").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        if item.kind.canDialDirectly {
+                            Text("不能直接拨打时").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        } else {
+                            Text("为防诈骗，iOS 不允许 App 直接拨打设置呼叫转移的代码。代码已复制：")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         Step(number: 1, text: "打开「电话」App，进入「拨号键盘」")
                         Step(number: 2, text: "长按号码栏，选「粘贴」，然后拨出")
                         Step(number: 3, text: isQuery ? "屏幕上会显示运营商返回的当前设置" : "看到运营商「设置成功」的提示后，回到这里确认")
