@@ -18,8 +18,15 @@ export default async function handler(req, res) {
     db().from('profiles').select(PROFILE_FIELDS).eq('user_id', auth.user.id).maybeSingle(),
   ]);
   logDbError('subscriptions.select', sub);
-  if (logDbError('profiles.select', profile)) {
-    sendJson(res, 500, { error: '读取设置失败，请稍后再试' });
+  const profileError = logDbError('profiles.select', profile);
+  if (profileError) {
+    // 最常见的原因：新增的字段还没建（没有重新运行 supabase/schema.sql）
+    const missingColumn = /column .* does not exist|could not find .* column/i.test(profileError.message || '');
+    sendJson(res, 500, {
+      error: missingColumn
+        ? '数据库还没更新：请在 Supabase SQL Editor 重新运行 supabase/schema.sql'
+        : '读取设置失败，请稍后再试',
+    });
     return;
   }
   sendJson(res, 200, {
