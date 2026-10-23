@@ -6,6 +6,7 @@ struct CallDetailView: View {
     let store: CallStore
 
     @Environment(AppSession.self) private var session
+    @Environment(ContactNames.self) private var contacts
     @Environment(\.openURL) private var openURL
     @State private var confirmBlock = false
     @State private var blocked = false
@@ -17,7 +18,8 @@ struct CallDetailView: View {
                 HStack(spacing: 14) {
                     CategoryBadge(category: call.category, size: 52)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(call.title).font(.title3.weight(.semibold))
+                        Text(call.displayTitle(contactName: contacts.name(for: call.fromNumber)))
+                            .font(.title3.weight(.semibold))
                         Text(call.createdAt, format: .dateTime.month().day().hour().minute())
                             .font(.subheadline)
                             .foregroundStyle(.secondary)

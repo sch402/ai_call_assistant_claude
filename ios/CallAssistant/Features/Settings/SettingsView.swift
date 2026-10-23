@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @Environment(AppSession.self) private var session
+    @Environment(ContactNames.self) private var contacts
     @State private var confirmSignOut = false
 
     private var membershipStatus: String {
@@ -43,6 +45,23 @@ struct SettingsView: View {
                                 .joined(separator: " · "))
                         }
                     }
+                }
+
+                Section {
+                    switch contacts.access {
+                    case .granted:
+                        LabeledContent("显示通讯录名字", value: String(localized: "已开启"))
+                    case .notDetermined:
+                        Button("显示通讯录里的名字") { Task { await contacts.requestAccess() } }
+                    case .denied:
+                        Button("去设置里允许读取通讯录") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                    }
+                } header: {
+                    Text("通讯录")
+                } footer: {
+                    Text("来电号码在通讯录里时，显示你保存的名字。只在这台手机上匹配，不会上传。")
                 }
 
                 Section("会员") {

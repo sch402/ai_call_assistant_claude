@@ -113,6 +113,11 @@ extension CallRecord {
     /// 订阅失效期间转过来的来电：没有接听，直接拒接了
     var isUnpaid: Bool { status == "unpaid" }
 
+    /// 显示用的标题：通讯录里有这个号码就用通讯录的名字，否则用 AI 听到的对方自称，最后才是号码。
+    func displayTitle(contactName: String?) -> String {
+        contactName ?? title
+    }
+
     /// 列表标题：对方自称的名字和机构，没有就显示号码。
     var title: String {
         let parts = [structured?.callerName, structured?.organization]

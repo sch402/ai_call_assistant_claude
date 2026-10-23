@@ -2,6 +2,8 @@ import SwiftUI
 
 struct CallListView: View {
     @Environment(AppSession.self) private var session
+    @Environment(ContactNames.self) private var contacts
+    @AppStorage("contacts.promptDismissed") private var contactsPromptDismissed = false
     @State private var store = CallStore()
 
     var body: some View {
@@ -55,9 +57,17 @@ struct CallListView: View {
                 description: Text(store.calls.isEmpty ? "开启代接后，你没接的电话会由 AI 接听并记录在这里。" : "换一个筛选看看。")
             )
         } else {
-            List(store.visibleCalls) { call in
-                NavigationLink(value: call) {
-                    CallRowView(call: call)
+            List {
+                if contacts.access == .notDetermined && !contactsPromptDismissed {
+                    ContactsPromptRow(
+                        onAllow: { Task { await contacts.requestAccess() } },
+                        onDismiss: { contactsPromptDismissed = true }
+                    )
+                }
+                ForEach(store.visibleCalls) { call in
+                    NavigationLink(value: call) {
+                        CallRowView(call: call)
+                    }
                 }
             }
             .listStyle(.plain)
@@ -65,15 +75,45 @@ struct CallListView: View {
     }
 }
 
+/// 来电列表顶部的一行提示：允许读取通讯录后，来电显示通讯录里的名字。
+private struct ContactsPromptRow: View {
+    let onAllow: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.badge.checkmark")
+                .font(.title2)
+                .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("显示通讯录里的名字").font(.subheadline.weight(.semibold))
+                Text("只在这台手机上匹配，不会上传通讯录。").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button("允许", action: onAllow)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("不再提示")
+        }
+        .padding(.vertical, 6)
+        .listRowSeparator(.hidden)
+    }
+}
+
 struct CallRowView: View {
     let call: CallRecord
+    @Environment(ContactNames.self) private var contacts
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             CategoryBadge(category: call.category, size: 40)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(call.title)
+                    Text(call.displayTitle(contactName: contacts.name(for: call.fromNumber)))
                         .font(.headline)
                         .lineLimit(1)
                     Spacer(minLength: 8)

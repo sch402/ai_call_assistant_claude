@@ -4,14 +4,21 @@ import SwiftUI
 struct CallAssistantApp: App {
     @State private var session = AppSession()
     @State private var store = Store()
+    @State private var contacts = ContactNames()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(session)
                 .environment(store)
+                .environment(contacts)
                 // 尽早开始监听：续费、其他设备购买、家长批准后的交易都从这里来
                 .task { store.observeTransactionUpdates(session: session) }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // 回到前台时重新读取通讯录：用户可能刚改过联系人，或在系统设置里改了权限
+            if phase == .active { Task { await contacts.reload() } }
         }
     }
 }

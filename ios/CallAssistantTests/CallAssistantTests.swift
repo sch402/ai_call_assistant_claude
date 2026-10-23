@@ -240,3 +240,25 @@ final class LoginInputTests: XCTestCase {
         XCTAssertEqual(OTPThrottle.waitTime(history: [now.addingTimeInterval(-4000)], now: now), 0)
     }
 }
+
+final class ContactNameTests: XCTestCase {
+    func testContactNameWinsOverAIAndNumber() throws {
+        let json = #"{"id":"x","created_at":"2026-10-19T03:59:50Z","from_number":"+61420576667","structured":{"caller_name":"Sarah","organization":"City Dental"}}"#
+        let call = try JSONDecoder.api.decode(CallRecord.self, from: Data(json.utf8))
+        XCTAssertEqual(call.displayTitle(contactName: "妈妈"), "妈妈")
+        XCTAssertEqual(call.displayTitle(contactName: nil), "Sarah · City Dental")
+    }
+
+    func testDisplayNameFallsBackToOrganization() {
+        XCTAssertEqual(ContactNames.displayName(fullName: "王小明", organization: ""), "王小明")
+        XCTAssertEqual(ContactNames.displayName(fullName: "", organization: "City Dental"), "City Dental")
+        XCTAssertEqual(ContactNames.displayName(fullName: nil, organization: "  "), nil)
+    }
+
+    func testContactNumbersAreMatchedInAnyFormat() {
+        // 通讯录里存的格式五花八门，和来电号码（E.164）都要能对上
+        XCTAssertEqual(PhoneNumber.e164("0420 576 667"), "+61420576667")
+        XCTAssertEqual(PhoneNumber.e164("+61 420 576 667"), "+61420576667")
+        XCTAssertEqual(PhoneNumber.e164("(02) 5849 6666"), "+61258496666")
+    }
+}
