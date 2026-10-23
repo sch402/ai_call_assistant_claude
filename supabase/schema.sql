@@ -99,3 +99,12 @@ create table if not exists public.user_blocks (
   primary key (user_id, number)
 );
 alter table public.user_blocks enable row level security;
+
+-- ---- 陌生号码分析缓存（lib/lookup.js）----
+-- 同一个号码在有效期内不重复搜索：找到的 30 天，没找到的（result 为空）7 天。所有用户共用。
+create table if not exists public.number_lookups (
+  number text primary key,            -- E.164
+  result jsonb,                       -- { kind, name, role, organization, confidence, sources } 或 null
+  searched_at timestamptz not null default now()
+);
+alter table public.number_lookups enable row level security;

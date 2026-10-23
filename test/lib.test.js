@@ -382,3 +382,59 @@ test('admin overview joins users, subscriptions and recent calls', () => {
   assert.equal(users.find((u) => u.user_id === 'b').subscription, 'none');
   assert.equal(subscriptions[0].phone, '+61400000001');
 });
+
+import { acceptIdentity, cacheFresh, matchingResults, nationalDigits, numberVariants, searchQuery, textMentionsNumber } from '../lib/lookup.js';
+
+test('number lookup searches the common written forms of a number', () => {
+  assert.deepEqual(numberVariants('+61401234505'), ['0401 234 505', '0401234505', '+61 401 234 505', '+61401234505']);
+  assert.deepEqual(numberVariants('+61258496666'), ['(02) 5849 6666', '02 5849 6666', '0258496666', '+61 2 5849 6666']);
+  assert.equal(searchQuery('+61401234505'), '"0401 234 505" OR "0401234505" OR "+61 401 234 505" OR "+61401234505"');
+  assert.equal(nationalDigits('+61401234505'), '401234505');
+});
+
+test('only results that really contain the number count as evidence', () => {
+  const n = '+61401234505';
+  for (const text of ['Call 0401 234 505 today', 'Mob: 0401234505', 'Ph +61 401 234 505', '+61 (0) 401-234-505', 'Tel: 0061 401 234 505', '(04) 0123 4505']) {
+    assert.ok(textMentionsNumber(text, n), text);
+  }
+  assert.ok(!textMentionsNumber('Call 0401 234 506', n));
+  assert.ok(!textMentionsNumber('ABN 12 401 234 505 99', n)); // 更长的数字串不算
+  assert.ok(!textMentionsNumber('', n));
+  const results = [
+    { title: 'Charles Adam - Ray White Parramatta', url: 'https://a', description: 'Mobile 0401 234 505' },
+    { title: 'Other agent', url: 'https://b', description: 'Mobile 0401 999 999' },
+  ];
+  assert.deepEqual(matchingResults(results, n).map((r) => r.url), ['https://a']);
+});
+
+test('identities are accepted only with confidence and real sources', () => {
+  const matches = [{ url: 'https://raywhite.com/agents/charles-adam' }];
+  const base = {
+    found: true, kind: 'person', name: 'Charles Adam', role_zh: '房产中介', organization: 'Ray White',
+    confidence: 90, evidence_urls: ['https://raywhite.com/agents/charles-adam'],
+  };
+  assert.deepEqual(acceptIdentity(base, matches), {
+    kind: 'person', name: 'Charles Adam', role: '房产中介', organization: 'Ray White', confidence: 90,
+    sources: ['https://raywhite.com/agents/charles-adam'],
+  });
+  assert.equal(acceptIdentity({ ...base, found: false }, matches), null);
+  assert.equal(acceptIdentity({ ...base, confidence: 50 }, matches), null);
+  // 引用了不在搜索结果里的网址：视为编造
+  assert.equal(acceptIdentity({ ...base, evidence_urls: ['https://made-up.example'] }, matches), null);
+  assert.equal(acceptIdentity({ ...base, name: '', role_zh: '' }, matches), null);
+  const spam = acceptIdentity({ ...base, kind: 'spam_report', name: 'x', role_zh: '被举报为推销电话', organization: '' }, matches);
+  assert.equal(spam.name, null);
+  assert.equal(spam.role, '被举报为推销电话');
+  assert.equal(acceptIdentity({ ...base, confidence: 140 }, matches).confidence, 100);
+  assert.equal(acceptIdentity(null, matches), null);
+});
+
+test('lookup cache: found results for 30 days, misses for 7', () => {
+  const now = Date.parse('2026-10-23T00:00:00Z');
+  const ago = (d) => new Date(now - d * 86400000).toISOString();
+  assert.ok(cacheFresh({ result: { name: 'x' }, searched_at: ago(20) }, now));
+  assert.ok(!cacheFresh({ result: { name: 'x' }, searched_at: ago(31) }, now));
+  assert.ok(cacheFresh({ result: null, searched_at: ago(3) }, now));
+  assert.ok(!cacheFresh({ result: null, searched_at: ago(8) }, now));
+  assert.ok(!cacheFresh(null, now));
+});

@@ -11,6 +11,7 @@ struct CallDetailView: View {
     @State private var confirmBlock = false
     @State private var blocked = false
     @State private var copied = false
+    @State private var lookup: NumberLookup?
 
     var body: some View {
         List {
@@ -35,7 +36,11 @@ struct CallDetailView: View {
                     .textSelection(.enabled)
             }
 
-            Section("详情") {
+            Section {
+                if let lookup {
+                    NumberLookupRow(lookup: lookup)
+                        .transition(.opacity)
+                }
                 InfoRow(label: "来电号码", value: call.fromNumber.map(PhoneFormat.display))
                 InfoRow(label: "来意", value: call.structured?.purpose)
                 InfoRow(label: "回电号码", value: call.structured?.callbackNumber)
@@ -44,6 +49,12 @@ struct CallDetailView: View {
                 InfoRow(label: "通话时长", value: call.durationSeconds.map { "\(Int($0.rounded())) 秒" })
                 if call.attributed == false {
                     InfoRow(label: "转移来源", value: "运营商未提供，无法确认是转给你的来电")
+                }
+            } header: {
+                Text("详情")
+            } footer: {
+                if let lookup {
+                    LookupFooter(lookup: lookup)
                 }
             }
 
@@ -82,6 +93,8 @@ struct CallDetailView: View {
             }
         }
         .navigationTitle("来电详情")
+        .animation(.easeOut(duration: 0.25), value: lookup)
+        .task(id: call.id) { await loadLookup() }
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("拉黑 \(PhoneFormat.display(call.dialableNumber ?? ""))？", isPresented: $confirmBlock, titleVisibility: .visible) {
             Button("拉黑", role: .destructive) {
@@ -118,6 +131,63 @@ private struct TagItem: Identifiable {
     let text: String
     let tint: Color
     var id: String { text }
+}
+
+private extension CallDetailView {
+    /// 陌生号码分析：只查通讯录里没有的号码；没找到或出错都不显示任何东西。
+    func loadLookup() async {
+        guard lookup == nil, let number = call.dialableNumber, contacts.name(for: number) == nil,
+              let client = session.client else { return }
+        lookup = try? await client.lookupNumber(number)
+    }
+}
+
+/// 「可能是 Charles Adam · 房产中介 · Ray White · 90%」
+private struct NumberLookupRow: View {
+    let lookup: NumberLookup
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: lookup.kind == .spamReport ? "exclamationmark.bubble.fill" : "person.text.rectangle.fill")
+                .font(.title3)
+                .foregroundStyle(lookup.kind == .spamReport ? Color.orange : Color.accentColor)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("可能是 \(lookup.headline)")
+                    .font(.subheadline.weight(.semibold))
+                if let detail = lookup.detail {
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 8)
+            Text("\(lookup.confidence)%")
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Color.accentColor.opacity(0.12), in: Capsule())
+                .accessibilityLabel("可信度 \(lookup.confidence)%")
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct LookupFooter: View {
+    let lookup: NumberLookup
+
+    var body: some View {
+        Text(text)
+    }
+
+    private var text: AttributedString {
+        var text = AttributedString(localized: "根据公开网络信息推测，仅供参考。")
+        if let url = lookup.sourceURL, let host = lookup.sourceHost {
+            var link = AttributedString(host)
+            link.link = url
+            text += AttributedString(localized: "来源：") + link
+        }
+        return text
+    }
 }
 
 private struct InfoRow: View {

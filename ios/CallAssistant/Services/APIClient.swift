@@ -40,6 +40,13 @@ struct APIClient {
         return response.calls
     }
 
+    /// 陌生号码分析：公开网络上这个号码可能属于谁。没找到时返回 nil。
+    func lookupNumber(_ number: String) async throws -> NumberLookup? {
+        struct Response: Decodable { let lookup: NumberLookup? }
+        let response: Response = try await get("api/calls", query: ["lookup": number])
+        return response.lookup
+    }
+
     /// 把 StoreKit 2 交易的 JWS 交给后端验证并开通，返回最新的订阅状态。
     func syncSubscription(signedTransaction: String) async throws -> SubscriptionInfo {
         struct Body: Encodable { let signedTransaction: String }
@@ -68,12 +75,23 @@ struct APIClient {
 
     // MARK: - 通用请求
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
-        try await send(path, method: "GET", body: Optional<String>.none)
+    private func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
+        try await send(path, method: "GET", body: Optional<String>.none, query: query)
     }
 
-    private func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B?, authorized: Bool = true) async throws -> T {
-        var request = URLRequest(url: baseURL.appending(path: path))
+    /// 网址加上查询参数。值做严格编码（+ 会变成 %2B，否则服务端会读成空格）。
+    static func url(_ base: URL, path: String, query: [String: String]) -> URL {
+        let url = base.appending(path: path)
+        guard !query.isEmpty, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        components.percentEncodedQueryItems = query.sorted { $0.key < $1.key }.map {
+            URLQueryItem(name: $0.key, value: $0.value.addingPercentEncoding(withAllowedCharacters: .alphanumerics))
+        }
+        return components.url ?? url
+    }
+
+    private func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B?, authorized: Bool = true,
+                                                  query: [String: String] = [:]) async throws -> T {
+        var request = URLRequest(url: Self.url(baseURL, path: path, query: query))
         request.httpMethod = method
         request.timeoutInterval = 20
         if authorized {

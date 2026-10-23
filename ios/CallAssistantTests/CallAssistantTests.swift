@@ -262,3 +262,31 @@ final class ContactNameTests: XCTestCase {
         XCTAssertEqual(PhoneNumber.e164("(02) 5849 6666"), "+61258496666")
     }
 }
+
+final class NumberLookupTests: XCTestCase {
+    func testLookupDecodingAndLabels() throws {
+        let json = #"{"lookup":{"kind":"person","name":"Charles Adam","role":"房产中介","organization":"Ray White","confidence":90,"sources":["https://www.raywhite.com/agents/charles-adam"]}}"#
+        struct Wrapper: Decodable { let lookup: NumberLookup? }
+        let lookup = try XCTUnwrap(JSONDecoder.api.decode(Wrapper.self, from: Data(json.utf8)).lookup)
+        XCTAssertEqual(lookup.headline, "Charles Adam")
+        XCTAssertEqual(lookup.detail, "房产中介 · Ray White")
+        XCTAssertEqual(lookup.sourceHost, "raywhite.com")
+    }
+
+    func testSpamReportUsesRoleAsHeadline() throws {
+        let json = #"{"kind":"spam_report","name":null,"role":"被举报为推销电话","organization":null,"confidence":80,"sources":["https://example.com"]}"#
+        let lookup = try JSONDecoder.api.decode(NumberLookup.self, from: Data(json.utf8))
+        XCTAssertEqual(lookup.headline, "被举报为推销电话")
+        XCTAssertNil(lookup.detail)
+    }
+
+    func testNotFoundDecodesAsNil() throws {
+        struct Wrapper: Decodable { let lookup: NumberLookup? }
+        XCTAssertNil(try JSONDecoder.api.decode(Wrapper.self, from: Data(#"{"lookup":null}"#.utf8)).lookup)
+    }
+
+    func testPlusSignIsEncodedInQuery() {
+        let url = APIClient.url(URL(string: "https://x.test")!, path: "api/calls", query: ["lookup": "+61401234505"])
+        XCTAssertEqual(url.absoluteString, "https://x.test/api/calls?lookup=%2B61401234505")
+    }
+}
