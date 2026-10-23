@@ -388,7 +388,8 @@ import { acceptIdentity, cacheFresh, matchingResults, nationalDigits, numberVari
 test('number lookup searches the common written forms of a number', () => {
   assert.deepEqual(numberVariants('+61401234505'), ['0401 234 505', '0401234505', '+61 401 234 505', '+61401234505']);
   assert.deepEqual(numberVariants('+61258496666'), ['(02) 5849 6666', '02 5849 6666', '0258496666', '+61 2 5849 6666']);
-  assert.equal(searchQuery('+61401234505'), '"0401 234 505" OR "0401234505" OR "+61 401 234 505" OR "+61401234505"');
+  assert.equal(searchQuery('+61401234505'), '0401234505 OR "0401 234 505" OR "+61 401 234 505"');
+  assert.equal(searchQuery('+61258496666'), '0258496666 OR "(02) 5849 6666" OR "02 5849 6666"');
   assert.equal(nationalDigits('+61401234505'), '401234505');
 });
 
@@ -437,4 +438,21 @@ test('lookup cache: found results for 90 days, misses for 30', () => {
   assert.ok(cacheFresh({ result: null, searched_at: ago(25) }, now));
   assert.ok(!cacheFresh({ result: null, searched_at: ago(31) }, now));
   assert.ok(!cacheFresh(null, now));
+});
+
+import { excerptAroundNumber, findNumber, htmlToText } from '../lib/lookup.js';
+
+test('page text: numbers are found in visible text and tel: links', () => {
+  const n = '+61436803229';
+  const html = `<html><head><style>.a{}</style><script>var x = "0436803229";</script></head>
+    <body><h1>Jane Citizen</h1><p>Sales Agent&nbsp;at Ray&nbsp;White Epping</p>
+    <a href="tel:0436803229">Call me</a></body></html>`;
+  const text = htmlToText(html);
+  assert.ok(!text.includes('var x')); // 脚本内容不算
+  assert.match(text, /Sales Agent at Ray White Epping/);
+  assert.ok(findNumber(text, n) >= 0); // 来自 tel: 链接
+  const plain = 'Intro text. Contact Jane Citizen, Ray White Epping, on 0436 803 229 for an appraisal.';
+  const excerpt = excerptAroundNumber(plain, n, 40);
+  assert.match(excerpt, /Ray White Epping, on 0436 803 229/);
+  assert.equal(excerptAroundNumber('no number here', n), null);
 });
