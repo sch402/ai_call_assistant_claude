@@ -429,12 +429,12 @@ test('identities are accepted only with confidence and real sources', () => {
   assert.equal(acceptIdentity(null, matches), null);
 });
 
-test('lookup cache: found results for 30 days, misses for 7', () => {
+test('lookup cache: found results for 90 days, misses for 30', () => {
   const now = Date.parse('2026-10-23T00:00:00Z');
   const ago = (d) => new Date(now - d * 86400000).toISOString();
-  assert.ok(cacheFresh({ result: { name: 'x' }, searched_at: ago(20) }, now));
-  assert.ok(!cacheFresh({ result: { name: 'x' }, searched_at: ago(31) }, now));
-  assert.ok(cacheFresh({ result: null, searched_at: ago(3) }, now));
-  assert.ok(!cacheFresh({ result: null, searched_at: ago(8) }, now));
+  assert.ok(cacheFresh({ result: { name: 'x' }, searched_at: ago(80) }, now));
+  assert.ok(!cacheFresh({ result: { name: 'x' }, searched_at: ago(91) }, now));
+  assert.ok(cacheFresh({ result: null, searched_at: ago(25) }, now));
+  assert.ok(!cacheFresh({ result: null, searched_at: ago(31) }, now));
   assert.ok(!cacheFresh(null, now));
 });

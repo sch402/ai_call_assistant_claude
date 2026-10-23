@@ -101,10 +101,14 @@ create table if not exists public.user_blocks (
 alter table public.user_blocks enable row level security;
 
 -- ---- 陌生号码分析缓存（lib/lookup.js）----
--- 同一个号码在有效期内不重复搜索：找到的 30 天，没找到的（result 为空）7 天。所有用户共用。
+-- 同一个号码在有效期内不重复搜索：找到的 90 天，没找到的（result 为空）30 天。所有用户共用。
 create table if not exists public.number_lookups (
   number text primary key,            -- E.164
   result jsonb,                       -- { kind, name, role, organization, confidence, sources } 或 null
   searched_at timestamptz not null default now()
 );
 alter table public.number_lookups enable row level security;
+
+-- 最近一次触发搜索的用户，用来限制每人每天的新搜索次数
+alter table public.number_lookups add column if not exists requested_by uuid references auth.users (id) on delete set null;
+create index if not exists number_lookups_requested_by_idx on public.number_lookups (requested_by, searched_at desc);

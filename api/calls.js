@@ -2,7 +2,7 @@
 // GET /api/calls?lookup=+61…：陌生号码分析（lib/lookup.js），只能查打给自己的号码。
 import { authenticate } from '../lib/auth.js';
 import { db, logDbError } from '../lib/db.js';
-import { cacheFresh, lookupEnabled, lookupNumber } from '../lib/lookup.js';
+import { cacheFresh, lookupEnabled, lookupNumber, MAX_NEW_LOOKUPS_PER_DAY } from '../lib/lookup.js';
 import { sendJson } from '../lib/http.js';
 import { env } from '../lib/env.js';
 import { summarizeTests } from '../lib/forwarding.js';
@@ -83,13 +83,22 @@ async function lookupForUser(userId, number) {
   logDbError('number_lookups.select', cached);
   if (cacheFresh(cached.data)) return cached.data.result;
 
+  // 每人每天的新搜索上限（按这位用户最近 24 小时触发的搜索计）
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const today = await db()
+    .from('number_lookups')
+    .select('number', { count: 'exact', head: true })
+    .eq('requested_by', userId)
+    .gte('searched_at', since);
+  if (logDbError('number_lookups.count', today) || (today.count ?? 0) >= MAX_NEW_LOOKUPS_PER_DAY) return null;
+
   try {
     const result = await lookupNumber(number);
     logDbError(
       'number_lookups.upsert',
       await db()
         .from('number_lookups')
-        .upsert({ number, result, searched_at: new Date().toISOString() }, { onConflict: 'number' })
+        .upsert({ number, result, searched_at: new Date().toISOString(), requested_by: userId }, { onConflict: 'number' })
     );
     return result;
   } catch (err) {
