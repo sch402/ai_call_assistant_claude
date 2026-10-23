@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct CallListView: View {
     @Environment(AppSession.self) private var session
@@ -58,8 +59,10 @@ struct CallListView: View {
             )
         } else {
             List {
-                if contacts.access == .notDetermined && !contactsPromptDismissed {
+                // 没开通讯录权限时一直显示（包括拒绝过），除非用户点 × 关掉
+                if contacts.access != .granted && !contactsPromptDismissed {
                     ContactsPromptRow(
+                        denied: contacts.access == .denied,
                         onAllow: { Task { await contacts.requestAccess() } },
                         onDismiss: { contactsPromptDismissed = true }
                     )
@@ -76,7 +79,9 @@ struct CallListView: View {
 }
 
 /// 来电列表顶部的一行提示：允许读取通讯录后，来电显示通讯录里的名字。
+/// 拒绝过权限后 iOS 不会再弹窗，所以按钮改为打开系统设置。
 private struct ContactsPromptRow: View {
+    let denied: Bool
     let onAllow: () -> Void
     let onDismiss: () -> Void
 
@@ -87,12 +92,20 @@ private struct ContactsPromptRow: View {
                 .foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text("显示通讯录里的名字").font(.subheadline.weight(.semibold))
-                Text("只在这台手机上匹配，不会上传通讯录。").font(.caption).foregroundStyle(.secondary)
+                Text(denied ? "请在设置里允许访问通讯录。只在这台手机上匹配，不会上传。" : "只在这台手机上匹配，不会上传通讯录。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Button("允许", action: onAllow)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+            Button(denied ? "去设置" : "允许") {
+                if denied, let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                } else {
+                    onAllow()
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
             Button(action: onDismiss) {
                 Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             }
