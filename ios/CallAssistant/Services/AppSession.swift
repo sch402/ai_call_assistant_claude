@@ -133,6 +133,7 @@ final class AppSession {
         keychain.delete(account: Self.tokensAccount)
         tokens = nil
         config = nil
+        configError = nil
     }
 
     /// 购买或恢复购买后，用后端返回的订阅状态更新界面，不用等下一次刷新。
@@ -145,6 +146,11 @@ final class AppSession {
         do {
             config = try await client.appConfig()
             configError = nil
+        } catch APIError.unauthorized {
+            // 服务端不认这个登录凭证了（例如账户在后台被删除）：直接回到登录页，不让用户卡在重试页
+            clearTokens()
+        } catch AuthError.sessionExpired {
+            clearTokens()
         } catch {
             configError = error.localizedDescription
         }
