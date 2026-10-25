@@ -13,7 +13,7 @@ settings:
     SWIFT_VERSION: "5.10"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    # 签名团队 Everyone Delivery Pty Ltd。这里要填 10 位 Team ID（不是团队名称），
+    # 苹果开发者团队（Team ID 3YDFH675B7）。这里要填 10 位 Team ID（不是团队名称），
     # 在 developer.apple.com › Account › Membership details 里查看。填好后 xcodegen generate 不用再手动选 Team。
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: 3YDFH675B7
