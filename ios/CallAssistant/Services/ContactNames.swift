@@ -31,10 +31,16 @@ final class ContactNames {
         access = Self.currentAccess()
         guard access == .granted else {
             names = [:]
+            ContactLookup.removeSharedIndex()
             return
         }
         loadTask?.cancel()
-        let task = Task.detached(priority: .utility) { Self.buildIndex() }
+        let task = Task.detached(priority: .utility) {
+            let index = Self.buildIndex()
+            // 同一份索引给通知扩展用（App Group 共享目录，只在这台手机上）
+            ContactLookup.saveSharedIndex(index)
+            return index
+        }
         loadTask = Task { [weak self] in
             let index = await task.value
             guard !Task.isCancelled else { return }

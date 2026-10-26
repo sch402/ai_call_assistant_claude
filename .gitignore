@@ -9,6 +9,7 @@ ios/*.xcodeproj/
 ios/CallAssistant/Info.plist
 ios/CallAssistant/CallAssistant.entitlements
 ios/NotificationService/Info.plist
+ios/NotificationService/NotificationService.entitlements
 xcuserdata/
 DerivedData/
 *.xcworkspace/xcuserdata/

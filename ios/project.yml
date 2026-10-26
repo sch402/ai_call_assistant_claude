@@ -44,6 +44,8 @@ targets:
       path: CallAssistant/CallAssistant.entitlements
       properties:
         aps-environment: development
+        # 和通知扩展共享通讯录匹配表（Shared/ContactLookup.swift）。自动签名会自动注册这个 App Group
+        com.apple.security.application-groups: [group.com.homeau.callassistant]
     info:
       path: CallAssistant/Info.plist
       properties:
@@ -74,6 +76,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.homeau.callassistant.NotificationService
         TARGETED_DEVICE_FAMILY: "1"
+    entitlements:
+      path: NotificationService/NotificationService.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.homeau.callassistant]
     info:
       path: NotificationService/Info.plist
       properties:
