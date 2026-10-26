@@ -8,6 +8,7 @@ node_modules/
 ios/*.xcodeproj/
 ios/CallAssistant/Info.plist
 ios/CallAssistant/CallAssistant.entitlements
+ios/NotificationService/Info.plist
 xcuserdata/
 DerivedData/
 *.xcworkspace/xcuserdata/

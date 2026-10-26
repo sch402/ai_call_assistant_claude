@@ -54,12 +54,7 @@ final class ContactNames {
 
     /// 遍历通讯录，把每个电话号码整理成 E.164 作为键。比较慢，在后台线程执行。
     nonisolated static func buildIndex() -> [String: String] {
-        let keys: [CNKeyDescriptor] = [
-            CNContactFormatter.descriptorForRequiredKeys(for: .fullName),
-            CNContactPhoneNumbersKey as CNKeyDescriptor,
-            CNContactOrganizationNameKey as CNKeyDescriptor,
-        ]
-        let request = CNContactFetchRequest(keysToFetch: keys)
+        let request = CNContactFetchRequest(keysToFetch: ContactLookup.keys)
         var index: [String: String] = [:]
         try? CNContactStore().enumerateContacts(with: request) { contact, _ in
             let fullName = CNContactFormatter.string(from: contact, style: .fullName)?
@@ -74,10 +69,8 @@ final class ContactNames {
         return index
     }
 
-    /// 有姓名用姓名，只填了公司就用公司名。
+    /// 有姓名用姓名，只填了公司就用公司名（和通知扩展共用 Shared/ContactLookup.swift）。
     nonisolated static func displayName(fullName: String?, organization: String) -> String? {
-        if let fullName, !fullName.isEmpty { return fullName }
-        let org = organization.trimmingCharacters(in: .whitespaces)
-        return org.isEmpty ? nil : org
+        ContactLookup.displayName(fullName: fullName, organization: organization)
     }
 }

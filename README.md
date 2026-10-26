@@ -242,7 +242,7 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 
 AI 接完一通电话、通话报告写入后，后端把「来电人 + 摘要」推送到这位用户登录过的所有 iPhone（`lib/push.js`）：
 
-- 标题和 App 列表一致：对方自称的名字和机构（例如「Sarah · City Dental」），没有就显示号码；疑似诈骗前面加「疑似诈骗 ·」。通讯录名字只在手机上，通知里看不到。
+- 标题和 App 列表一致：对方自称的名字和机构（例如「Sarah · City Dental」），没有就显示号码；疑似诈骗前面加「疑似诈骗 ·」。号码在通讯录里时，App 的通知扩展（`ios/NotificationService`）在显示前把标题换成通讯录里保存的名字，通讯录只在手机上匹配，不上传。
 - 内容是中文摘要（最多 180 字）。点通知直接打开这通来电的详情。
 - 诈骗、推销、机器人外呼用 `passive` 级别：静默进通知中心，不响铃、不亮屏。
 - App 每次启动上报设备令牌（`push_tokens` 表）；退出登录时注销这台设备；删除账户时级联删除。苹果说令牌失效（卸载 App 等）时自动删除。
@@ -251,9 +251,9 @@ AI 接完一通电话、通话报告写入后，后端把「来电人 + 摘要�
 设置（一次）：
 
 1. Apple Developer › **Certificates, Identifiers & Profiles › Keys › +**，Key Name 随便填，勾选 **Apple Push Notifications service (APNs)**，点 Configure，Environment 选 **Sandbox & Production**，Key Restriction 选 **Team Scoped (All Topics)**。**Continue › Register › Download**，`.p8` 只能下载一次。
-2. Vercel 加环境变量：`APNS_KEY_ID`（页面上的 Key ID）、`APNS_PRIVATE_KEY`（`.p8` 文件的全部内容，直接粘贴）。`APNS_TEAM_ID` 默认 `3YDFH675B7`。然后 **Redeploy**。
+2. Vercel 加环境变量：`APNS_KEY_ID`（页面上的 Key ID）、`APNS_PRIVATE_KEY`（`.p8` 文件的全部内容，直接粘贴）。`.p8` 是纯文本文件，在 Terminal 运行 `pbcopy < ~/Downloads/AuthKey_XXXXXXXXXX.p8` 就复制到剪贴板了（或者右键 **Open With › TextEdit**）。`APNS_TEAM_ID` 默认 `3YDFH675B7`。然后 **Redeploy**。
 3. Supabase 重新运行一次 `supabase/schema.sql`（新增 `push_tokens` 表）。
-4. iOS：`xcodegen generate` 后工程里会带上 Push Notifications 能力（`project.yml` 的 `entitlements`），自动签名会把它加到 App ID 上，不用手动在 **Signing & Capabilities** 里加。
+4. iOS：`xcodegen generate` 后工程里会带上 Push Notifications 能力（`project.yml` 的 `entitlements`）和通知扩展 target `NotificationService`，自动签名会把能力加到 App ID 上、并为扩展创建 App ID，不用手动在 **Signing & Capabilities** 里加。
 
 排查：每次推送在 Vercel 日志里留一行「推送通知」（设备数、成功数、删除的失效令牌、失败原因）。日志出现「APNs 拒绝了令牌」说明三个 `APNS_*` 变量有误。模拟器收不到远程推送，要用真机测试。
 

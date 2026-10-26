@@ -72,6 +72,8 @@ ios/
 │   ├── Models/                  来电数据、转移代码
 │   ├── Services/                网络请求、Supabase 登录、会话、钥匙串
 │   └── Resources/Assets.xcassets  图标、开屏 Logo、主题色
+├── NotificationService/         通知扩展：来电通知显示前换成通讯录里的名字
+├── Shared/                      App 和通知扩展共用：号码整理、通讯录查找
 ├── CallAssistantTests/          单元测试
 ├── fastlane/                    App Store 文案、截图、上传命令
 ├── appstore/                    截图和预览视频生成脚本、上架指南

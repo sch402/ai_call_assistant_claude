@@ -28,6 +28,10 @@ targets:
     platform: iOS
     sources:
       - path: CallAssistant
+      - path: Shared
+    dependencies:
+      # 通知扩展：用通讯录名字替换来电通知的标题。会自动嵌入 App
+      - target: NotificationService
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.homeau.callassistant
@@ -57,6 +61,28 @@ targets:
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         ITSAppUsesNonExemptEncryption: false
+
+  # Notification Service Extension：来电通知显示前，用本机通讯录里的名字替换标题（NotificationService/）。
+  # 自动签名会自动创建 com.homeau.callassistant.NotificationService 的 App ID 和描述文件。
+  NotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: NotificationService
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.homeau.callassistant.NotificationService
+        TARGETED_DEVICE_FAMILY: "1"
+    info:
+      path: NotificationService/Info.plist
+      properties:
+        CFBundleDisplayName: 来电助手通知
+        CFBundleDevelopmentRegion: zh-Hans
+        NSContactsUsageDescription: 用来在来电通知里显示通讯录中保存的名字。通讯录只在这台手机上匹配，不会上传。
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
 
   CallAssistantTests:
     type: bundle.unit-test

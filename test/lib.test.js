@@ -471,10 +471,15 @@ test('push notification shows who called and the Chinese summary', () => {
   assert.equal(n.aps['interruption-level'], 'active');
   assert.equal(n.aps.sound, 'default');
   assert.equal(n.callId, 'c1');
+  // 通知扩展用号码查通讯录名字
+  assert.equal(n.aps['mutable-content'], 1);
+  assert.equal(n.fromNumber, '+61255501234');
+  assert.equal(n.scam, false);
 
   const scam = callNotification({ fromNumber: '+61491570156', structured: { caller_name: 'unknown', scam_risk: 92, summary_zh: '冒充大使馆' } });
   assert.equal(scam.aps.alert.title, '疑似诈骗 · +61 491 570 156');
   assert.equal(scam.aps['interruption-level'], 'passive');
+  assert.equal(scam.scam, true);
   assert.equal(JSON.parse(JSON.stringify(scam)).aps.sound, undefined);
 
   const bare = callNotification({ fromNumber: null, structured: null, summary: 'x'.repeat(300) });
