@@ -60,7 +60,7 @@ openssl rand -hex 24
 
 ### 6. 在手机上设置呼叫转移
 
-先在 iPhone **设置 › App › 电话** 里关闭 **实时语音留言**，并把「筛选陌生来电」设为 **不筛选**，否则 iPhone 会自己接听，转移不会触发。
+先在 iPhone **Settings › Apps › Phone** 里关闭 **Live Voicemail**，并把 **Screen Unknown Callers** 设为 **Never**，否则 iPhone 会自己接听，转移不会触发。
 
 然后在拨号键盘输入下面的代码并拨出（把 `+61XXXXXXXXX` 换成你的 Twilio 号码）：
 
@@ -202,25 +202,25 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 
 - 一个苹果订阅只能绑定一个手机号账户。用同一个 Apple ID 在另一个账户「恢复购买」会提示已绑定，防止一份订阅给多个号码用。
 - 苹果的通知可能乱序到达，比现有记录旧的通知会被忽略。退款（`REFUND` / `REVOKE`）立即停用，没有宽限期。
-- 到期后的 3 天宽限期由我们自己的规则提供。App Store Connect 里的「账单宽限期」（Billing Grace Period）建议**不要开启**，否则会和这 3 天叠加。
+- 到期后的 3 天宽限期由我们自己的规则提供。App Store Connect 里的 **Billing Grace Period** 建议**不要开启**，否则会和这 3 天叠加。
 
 ### 上线前在 App Store Connect 里要做的
 
-1. **协议、税务和银行业务**：签署「付费 App 协议」，填好银行账户和税务信息。不签的话，App 里拿不到任何订阅产品。
-2. **App › 订阅**：新建订阅群组（例如「来电助手 Pro」），在群组里创建产品，产品 ID 要和 `ios/project.yml` 的 `IAP_PRODUCT_IDS` 一致：
+1. **Business**（以前叫 Agreements, Tax, and Banking）：签署 **Paid Apps Agreement**，填好银行账户和税务信息。不签的话，App 里拿不到任何订阅产品。
+2. **Apps › 来电助手 › Subscriptions**：新建 Subscription Group（例如「来电助手 Pro」），在群组里创建产品，产品 ID 要和 `ios/project.yml` 的 `IAP_PRODUCT_IDS` 一致：
    - `com.homeau.callassistant.pro.monthly`（1 个月）
    - `com.homeau.callassistant.pro.yearly`（1 年）
 
-   每个产品都要填价格、显示名称、描述和审核截图。可以在产品里加「推介促销优惠」做免费试用，订阅页会自动显示。
-3. **App 信息 › App Store 服务器通知**：正式环境和沙盒环境的网址都填 `https://<你的域名>/api/appstore-notifications`，版本选 **Version 2**。网页上没有测试按钮：用沙盒账号买一次订阅，Vercel 日志里出现「苹果通知 SUBSCRIBED」就说明通了。
-4. **App 信息 › 常规信息 › Apple ID**：把这串数字填进 Vercel 的 `APPLE_APP_APPLE_ID`。
-5. **App 隐私**：隐私政策网址填 `https://<你的域名>/privacy.html`（先把页面里的 `[联系邮箱]` 换掉）。
-6. **用户协议**：订阅页的「使用条款」链接到我们自己的 `terms.html`，不是苹果的标准协议。在 **App 信息 › 许可协议**（License Agreement）里选择自定义协议并粘贴 `terms.html` 的内容，或在 App 描述里写上 `https://<你的域名>/terms.html`。
+   每个产品都要填 Subscription Prices、App Store Localization（Display Name、Description）和 Review Information 里的截图。可以在产品里加 **Introductory Offer** 做免费试用，订阅页会自动显示。
+3. **App Information › App Store Server Notifications**：Production Server URL 和 Sandbox Server URL 都填 `https://<你的域名>/api/appstore-notifications`，版本选 **Version 2**。网页上没有测试按钮：用沙盒账号买一次订阅，Vercel 日志里出现「苹果通知 SUBSCRIBED」就说明通了。
+4. **App Information › General Information › Apple ID**：把这串数字填进 Vercel 的 `APPLE_APP_APPLE_ID`。
+5. **App Privacy**：Privacy Policy URL 填 `https://<你的域名>/privacy.html`。
+6. **用户协议**：订阅页的「使用条款」链接到我们自己的 `terms.html`，不是苹果的标准协议。在 **App Information › License Agreement** 里点 Edit，选择自定义协议并粘贴 `terms.html` 的内容，或在 App 描述里写上 `https://<你的域名>/terms.html`。
 
 ### 测试
 
-- 在 **用户和访问 › 沙盒** 里创建一个沙盒测试账号，然后在 iPhone 的 **设置 › App Store › 沙盒账户** 登录它。用 Xcode 装到手机上购买，走的就是沙盒环境，不扣钱。
-- 沙盒里订阅会加速：默认 1 个月的订阅大约 5 分钟续费一次（续费速度可以在沙盒测试账号设置里调整）。可以用来测续费、过期和宽限期。
+- 在 **Users and Access › Sandbox** 里创建一个沙盒测试账号，然后在 iPhone 的 **Settings › Developer › Sandbox Apple Account** 登录它（手机要先用 Xcode 装过一次 App，才会出现 Developer 菜单）。用 Xcode 装到手机上购买，走的就是沙盒环境，不扣钱。
+- 沙盒里订阅会加速：默认 1 个月的订阅大约 5 分钟续费一次（续费速度可以在 Sandbox 测试账号的 Renewal Rate 里调整）。可以用来测续费、过期和宽限期。
 - TestFlight 的购买也是沙盒，同样不扣钱。
 
 ## 陌生号码分析
@@ -243,7 +243,7 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 
 1. **Twilio › Verify › Settings › Geo permissions**：只勾选 **Australia**。这是防「短信轰炸 / 国际高价短信诈骗（SMS pumping）」最有效的一步，别的国家的号码根本发不出去。
 2. **Twilio › Verify › Settings › Fraud Guard**：保持开启（建议选 Standard 或更严格），自动拦截可疑的批量请求。
-3. **Supabase › Authentication › Rate Limits**：把「每小时发送短信数」设成一个和用户量相当的上限（例如开始时 30），超过后新的验证码请求会被拒绝，最坏情况下的费用就封顶了。用户多了再调高。
+3. **Supabase › Authentication › Rate Limits**：把 **Rate limit for sending SMS messages** 设成一个和用户量相当的上限（例如开始时 30），超过后新的验证码请求会被拒绝，最坏情况下的费用就封顶了。用户多了再调高。
 4. 以后如果仍有人恶意刷，可以开启 **Supabase › Authentication › Attack Protection › CAPTCHA**（Cloudflare Turnstile），App 端需要配合加一个验证组件。
 
 ## 公用号码的并发
