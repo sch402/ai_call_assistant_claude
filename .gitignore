@@ -16,4 +16,6 @@ DerivedData/
 ios/fastlane/report.xml
 ios/fastlane/README.md
 ios/build/
+ios/vendor/bundle/
+ios/.bundle/
 ios/appstore/build/

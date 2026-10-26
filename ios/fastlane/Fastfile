@@ -1,5 +1,6 @@
 # App Store 上架。文案在 fastlane/metadata/，截图在 fastlane/screenshots/（由 ios/appstore/render-screenshots.mjs 生成）。
-# 所有命令都在 ios/ 目录运行。安装：brew install fastlane（或用 ios/Gemfile：bundle install，再加 bundle exec 前缀）。
+# 所有命令都在 ios/ 目录运行。安装：brew install fastlane（或用 ios/Gemfile：bundle config set --local path vendor/bundle
+# 后 bundle install，命令再加 bundle exec 前缀）。
 #
 #   fastlane metadata   上传文案、截图、分类、审核信息（不上传安装包，不提交审核）
 #   fastlane beta       打包并上传到 TestFlight（也可以直接用 Xcode 的 Product › Archive › Distribute App）

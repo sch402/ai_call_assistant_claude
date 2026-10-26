@@ -48,7 +48,16 @@
    brew install fastlane
    ```
 
-   之后在 `ios/` 目录直接运行 `fastlane <lane>`。（也可以用仓库里的 `ios/Gemfile`：`bundle install` 后运行 `bundle exec fastlane <lane>`，但需要先用 Homebrew 或 rbenv 装新版 Ruby。）
+   之后在 `ios/` 目录直接运行 `fastlane <lane>`，不需要 `bundle install`。
+
+   如果想用仓库里的 `ios/Gemfile`（锁定 fastlane 版本），把 gem 装到 `ios/vendor/bundle`，不要装进系统或 Homebrew 的 Ruby 目录（会报 `Bundler::PermissionError`，也不要用 sudo）：
+
+   ```bash
+   cd ios
+   bundle config set --local path vendor/bundle
+   bundle install
+   bundle exec fastlane <lane>
+   ```
 
 ## 二、从 Xcode 上传安装包
 
