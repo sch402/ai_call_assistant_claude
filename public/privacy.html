@@ -34,6 +34,7 @@
     <tr><td>来电记录</td><td>来电号码、来电时间、运营商带来的转移来源号码、通话时长、文字转写、AI 生成的摘要和分类（例如是否疑似诈骗）</td><td>在 App 里向你展示谁打来、为什么打来</td></tr>
     <tr><td>黑名单</td><td>你选择拉黑的号码</td><td>直接拒接这些号码</td></tr>
     <tr><td>订阅信息</td><td>Apple 提供的交易编号、订阅产品、到期时间、是否自动续费</td><td>判断代接服务是否有效</td></tr>
+    <tr><td>推送通知</td><td>Apple 为你的设备分配的推送令牌（你允许通知时）</td><td>AI 接完电话后，把来电人和摘要推送到你的手机</td></tr>
     <tr><td>技术信息</td><td>App 版本、请求时间、IP 地址等服务器运行日志</td><td>保障服务安全、排查故障</td></tr>
   </table>
   <p>我们<strong>不会</strong>收集：通话录音、短信、位置、照片，以及银行卡等支付信息（付款完全由 Apple 处理）。</p>
@@ -73,7 +74,7 @@
     <tr><td>OpenAI</td><td>实时语音识别、对话与摘要</td><td>美国</td></tr>
     <tr><td>Serper / Brave Search</td><td>陌生号码分析：用来电号码搜索公开网页</td><td>美国等境外地区</td></tr>
     <tr><td>Anthropic</td><td>陌生号码分析：从公开网页摘要中提取号码所属的人或公司</td><td>美国</td></tr>
-    <tr><td>Apple</td><td>订阅付款</td><td>按 Apple 的隐私政策</td></tr>
+    <tr><td>Apple</td><td>订阅付款；推送通知（通知内容经 Apple 推送服务送达你的设备）</td><td>按 Apple 的隐私政策</td></tr>
   </table>
   <p>除此以外，只有在法律要求（例如法院命令）、为保护用户或公众的安全、或公司合并收购时，我们才会披露个人信息，并在法律允许时通知你。</p>
 
@@ -132,6 +133,7 @@
     <li><strong>Call records:</strong> caller number, time, the forwarding number supplied by your carrier, duration, a text transcript, and an AI-generated summary and category (for example, suspected scam).</li>
     <li><strong>Blocked numbers</strong> you choose to block.</li>
     <li><strong>Subscription:</strong> Apple transaction ID, product, expiry date and auto-renew status.</li>
+    <li><strong>Push notifications:</strong> the push token Apple assigns to your device (if you allow notifications), so we can send you the caller and summary when the AI finishes a call.</li>
     <li><strong>Technical:</strong> app version, request times, IP addresses and similar server logs, for security and troubleshooting.</li>
   </ul>
   <p>We do <strong>not</strong> collect call audio, messages, location or photos, or card details (payments are handled entirely by Apple).</p>
@@ -149,7 +151,7 @@
   <p>Real-time speech recognition, conversation and summarisation are performed by third-party AI services (see section 6). Call audio is processed in real time only; recording is turned off and we do not store audio. AI summaries and categories may be inaccurate, so rely on the full transcript. Under OpenAI's API data policy, data submitted through the API is not used to train its models by default.</p>
 
   <h2>6. Who we share information with</h2>
-  <p>We share information only with service providers that help us run the Service, under contracts requiring them to protect it and use it only to provide services to us: Supabase (database and sign-in, Sydney, Australia), Vercel (hosting, Sydney, with some services possibly in the United States), Twilio (call forwarding and SMS codes, United States and elsewhere), Vapi (AI voice platform, United States), OpenAI (speech, conversation and summaries, United States), Serper or Brave Search (searching public web pages for unknown caller numbers, United States and other overseas locations), Anthropic (extracting who a number belongs to from public search snippets, United States) and Apple (payments). Otherwise we disclose personal information only where required by law, to protect the safety of users or the public, or in a business transfer, and will notify you where the law allows.</p>
+  <p>We share information only with service providers that help us run the Service, under contracts requiring them to protect it and use it only to provide services to us: Supabase (database and sign-in, Sydney, Australia), Vercel (hosting, Sydney, with some services possibly in the United States), Twilio (call forwarding and SMS codes, United States and elsewhere), Vapi (AI voice platform, United States), OpenAI (speech, conversation and summaries, United States), Serper or Brave Search (searching public web pages for unknown caller numbers, United States and other overseas locations), Anthropic (extracting who a number belongs to from public search snippets, United States) and Apple (payments; push notifications, delivered to your device through the Apple Push Notification service). Otherwise we disclose personal information only where required by law, to protect the safety of users or the public, or in a business transfer, and will notify you where the law allows.</p>
 
   <h2>7. Overseas disclosure</h2>
   <p>As listed above, some information is processed outside Australia, mainly in the United States. By using the Service you acknowledge and consent to this. We take reasonable steps to ensure overseas providers protect your information to a standard comparable to the APPs.</p>

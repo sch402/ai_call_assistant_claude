@@ -4,11 +4,13 @@ import UIKit
 struct CallListView: View {
     @Environment(AppSession.self) private var session
     @Environment(ContactNames.self) private var contacts
+    @Environment(PushCenter.self) private var push
     @AppStorage("contacts.promptDismissed") private var contactsPromptDismissed = false
     @State private var store = CallStore()
+    @State private var path: [CallRecord] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             content
                 .navigationTitle("来电")
                 .navigationDestination(for: CallRecord.self) { call in
@@ -33,7 +35,32 @@ struct CallListView: View {
                     .background(.bar)
                 }
                 .refreshable { await store.load(using: session.client) }
-                .task { await store.load(using: session.client) }
+                .task {
+                    await store.load(using: session.client)
+                    await openPendingCall()
+                }
+                // 点了来电通知：打开那通来电
+                .onChange(of: push.pendingCallID) { _, id in
+                    if id != nil { Task { await openPendingCall() } }
+                }
+                // App 在前台时来了新通知：刷新列表
+                .onChange(of: push.callsChanged) { _, _ in
+                    Task { await store.load(using: session.client) }
+                }
+        }
+    }
+
+    /// 列表里还没有这通来电（通知比列表新）就先刷新，再推入详情页
+    private func openPendingCall() async {
+        guard let id = push.pendingCallID else { return }
+        if !store.calls.contains(where: { $0.id == id }) {
+            await store.load(using: session.client)
+        }
+        guard push.pendingCallID == id else { return }
+        push.pendingCallID = nil
+        if let call = store.calls.first(where: { $0.id == id }) {
+            store.filter = .all
+            path = [call]
         }
     }
 

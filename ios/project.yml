@@ -35,6 +35,11 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_PREVIEWS: YES
+    # 推送通知能力。自动签名会把 Push Notifications 加到 App ID 上；打包上传 App Store 时会自动换成 production。
+    entitlements:
+      path: CallAssistant/CallAssistant.entitlements
+      properties:
+        aps-environment: development
     info:
       path: CallAssistant/Info.plist
       properties:

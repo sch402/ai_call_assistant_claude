@@ -1,5 +1,7 @@
 // 账户接口，需要 App 登录令牌：
 //   PATCH  { name?, gender?, voiceStyle? }  修改 AI 助手设置，下一通来电生效（见 /api/vapi-webhook 的 assistant-request）
+//   POST   { pushToken, environment }       上报推送设备令牌（environment：production / sandbox），见 lib/push.js
+//   POST   { pushToken, remove: true }      注销这台设备（退出登录时）
 //   DELETE                                  删除账户（苹果审核要求 App 内可以删除账户）
 // 删除时先删这位用户的来电记录，再删除 Supabase 里的登录用户；profiles、subscriptions 随之级联删除。
 // 注意两件删账户做不到的事，由 App 在删除前提醒用户：
@@ -9,9 +11,10 @@ import { authenticate } from '../lib/auth.js';
 import { db, logDbError } from '../lib/db.js';
 import { bodyOf, sendJson } from '../lib/http.js';
 import { PROFILE_FIELDS, profileView, validateProfileUpdate } from '../lib/profile.js';
+import { registerPushToken, unregisterPushToken } from '../lib/push.js';
 
 export default async function handler(req, res) {
-  if (req.method !== 'DELETE' && req.method !== 'PATCH') {
+  if (!['DELETE', 'PATCH', 'POST'].includes(req.method)) {
     res.status(405).send('Method Not Allowed');
     return;
   }
@@ -22,6 +25,14 @@ export default async function handler(req, res) {
   }
   if (req.method === 'PATCH') {
     await updateProfile(req, res, auth.user.id);
+    return;
+  }
+  if (req.method === 'POST') {
+    const body = bodyOf(req);
+    const { error } = body.remove
+      ? await unregisterPushToken(auth.user.id, body.pushToken)
+      : await registerPushToken(auth.user.id, { token: body.pushToken, environment: body.environment });
+    sendJson(res, error ? 400 : 200, error ? { error } : { ok: true });
     return;
   }
   const { id } = auth.user;

@@ -1,12 +1,13 @@
 // Vapi 的服务端回调：
 //   assistant-request   来电接通时，按这位用户的设置（称呼、性别、音色）返回助理配置
-//   end-of-call-report  通话结束报告，把转写和分析结果写进通话卡片
+//   end-of-call-report  通话结束报告，把转写和分析结果写进通话卡片，并推送通知给这位用户
 import { db, logDbError } from '../lib/db.js';
 import { env } from '../lib/env.js';
 import { bodyOf, sendJson, timingSafeEqualString } from '../lib/http.js';
 import { findCallSids, findHeaderValue, pickByCallerAndTime } from '../lib/match.js';
 import { assistantForProfile, PROFILE_FIELDS } from '../lib/profile.js';
 import { samePhone } from '../lib/phone.js';
+import { notifyCallCompleted } from '../lib/push.js';
 
 function authorized(req) {
   const secret = env('VAPI_WEBHOOK_SECRET');
@@ -135,6 +136,17 @@ export default async function handler(req, res) {
   if (writeError) {
     sendJson(res, 500, { error: writeError.message || 'database error' });
     return;
+  }
+
+  // 归属到用户的来电：推送「谁打来 + 摘要」。在返回之前发，Vercel 返回响应后可能冻结函数。
+  if (row?.user_id) {
+    await notifyCallCompleted({
+      userId: row.user_id,
+      callId: row.id,
+      fromNumber: row.from_number || callerNumber,
+      structured: update.structured,
+      summary: update.summary,
+    });
   }
 
   sendJson(res, 200, { ok: true, matched: method || 'unmatched' });

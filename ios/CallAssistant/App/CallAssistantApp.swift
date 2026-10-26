@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct CallAssistantApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = AppSession()
     @State private var store = Store()
     @State private var contacts = ContactNames()
@@ -13,12 +14,16 @@ struct CallAssistantApp: App {
                 .environment(session)
                 .environment(store)
                 .environment(contacts)
+                .environment(PushCenter.shared)
                 // 尽早开始监听：续费、其他设备购买、家长批准后的交易都从这里来
                 .task { store.observeTransactionUpdates(session: session) }
         }
         .onChange(of: scenePhase) { _, phase in
-            // 回到前台时重新读取通讯录：用户可能刚改过联系人，或在系统设置里改了权限
-            if phase == .active { Task { await contacts.reload() } }
+            // 回到前台时重新读取通讯录和通知权限：用户可能刚改过联系人，或在系统设置里改了权限
+            if phase == .active {
+                Task { await contacts.reload() }
+                Task { await PushCenter.shared.refreshPermission() }
+            }
         }
     }
 }
@@ -94,6 +99,8 @@ struct MainTabView: View {
                 .tag(AppTab.settings)
         }
         .task { await session.refreshConfig() }
+        // 进入主界面后请求通知权限并上报设备令牌（AI 接完电话后推送来电人和摘要）
+        .task { await PushCenter.shared.start(session: session) }
         .sheet(isPresented: $session.showSubscription) { SubscriptionView() }
     }
 }

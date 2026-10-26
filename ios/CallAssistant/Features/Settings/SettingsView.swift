@@ -4,6 +4,7 @@ import UIKit
 struct SettingsView: View {
     @Environment(AppSession.self) private var session
     @Environment(ContactNames.self) private var contacts
+    @Environment(PushCenter.self) private var push
     @State private var confirmSignOut = false
 
     private var membershipStatus: String {
@@ -62,6 +63,23 @@ struct SettingsView: View {
                     Text("通讯录")
                 } footer: {
                     Text("来电号码在通讯录里时，显示你保存的名字。只在这台手机上匹配，不会上传。")
+                }
+
+                Section {
+                    switch push.permission {
+                    case .granted:
+                        LabeledContent("来电通知", value: String(localized: "已开启"))
+                    case .notDetermined:
+                        Button("开启来电通知") { Task { await push.requestPermission() } }
+                    case .denied:
+                        Button("去设置里打开通知") {
+                            if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                    }
+                } header: {
+                    Text("通知")
+                } footer: {
+                    Text("AI 接完电话后推送来电人和摘要。疑似诈骗和推销电话静默送达，不响铃。")
                 }
 
                 Section("会员") {

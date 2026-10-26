@@ -68,6 +68,18 @@ struct APIClient {
         let _: OKResponse = try await send("api/account", method: "DELETE", body: Optional<String>.none)
     }
 
+    /// 上报推送设备令牌。environment：sandbox（Xcode 调试版）/ production（TestFlight、App Store）
+    func registerPush(token: String, environment: String) async throws {
+        struct Body: Encodable { let pushToken: String; let environment: String }
+        let _: OKResponse = try await send("api/account", method: "POST", body: Body(pushToken: token, environment: environment))
+    }
+
+    /// 退出登录时注销这台设备，之后不再收到这个账户的来电通知
+    func unregisterPush(token: String) async throws {
+        struct Body: Encodable { let pushToken: String; let remove: Bool }
+        let _: OKResponse = try await send("api/account", method: "POST", body: Body(pushToken: token, remove: true))
+    }
+
     func block(number: String) async throws {
         struct Body: Encodable { let number: String; let reason: String }
         let _: OKResponse = try await send("api/admin/blocklist", method: "POST", body: Body(number: number, reason: "app"))

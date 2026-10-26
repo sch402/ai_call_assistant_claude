@@ -70,6 +70,13 @@ final class FormattingTests: XCTestCase {
         XCTAssertEqual(PhoneFormat.display("+8613800138000"), "+8613800138000")
     }
 
+    func testPushTokenIsLowercaseHex() {
+        XCTAssertEqual(PushCenter.hex(Data([0x00, 0x0f, 0xab, 0xff])), "000fabff")
+        #if DEBUG
+        XCTAssertEqual(PushCenter.environment, "sandbox")
+        #endif
+    }
+
     func testServerURLNormalisation() {
         XCTAssertEqual(AppSession.normalizedServerURL("aicallassistantclaude.vercel.app/")?.absoluteString, "https://aicallassistantclaude.vercel.app")
         XCTAssertEqual(AppSession.normalizedServerURL("http://a.vercel.app")?.absoluteString, "https://a.vercel.app")

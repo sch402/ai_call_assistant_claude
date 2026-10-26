@@ -112,3 +112,15 @@ alter table public.number_lookups enable row level security;
 -- 最近一次触发搜索的用户，用来限制每人每天的新搜索次数
 alter table public.number_lookups add column if not exists requested_by uuid references auth.users (id) on delete set null;
 create index if not exists number_lookups_requested_by_idx on public.number_lookups (requested_by, searched_at desc);
+
+-- ---- 推送通知（lib/push.js）----
+-- App 每次启动上报 APNs 设备令牌。同一台设备换账号登录时归到新账号；苹果说令牌失效（卸载 App 等）时自动删除。
+-- environment：sandbox = 从 Xcode 直接装的调试版；production = TestFlight 和 App Store 版。
+create table if not exists public.push_tokens (
+  token text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  environment text not null check (environment in ('production', 'sandbox')),
+  updated_at timestamptz not null default now()
+);
+create index if not exists push_tokens_user_id_idx on public.push_tokens (user_id);
+alter table public.push_tokens enable row level security;

@@ -456,3 +456,53 @@ test('page text: numbers are found in visible text and tel: links', () => {
   assert.match(excerpt, /Ray White Epping, on 0436 803 229/);
   assert.equal(excerptAroundNumber('no number here', n), null);
 });
+
+import { generateKeyPairSync, verify } from 'node:crypto';
+import { callNotification, displayNumber, isDeadToken, normalizePrivateKey, providerToken, validPushToken } from '../lib/push.js';
+
+test('push notification shows who called and the Chinese summary', () => {
+  const n = callNotification({
+    callId: 'c1',
+    fromNumber: '+61255501234',
+    structured: { caller_name: 'Sarah', organization: 'City Dental', category: 'business', scam_risk: 3, summary_zh: '确认周五的预约，请回电。' },
+  });
+  assert.equal(n.aps.alert.title, 'Sarah · City Dental');
+  assert.equal(n.aps.alert.body, '确认周五的预约，请回电。');
+  assert.equal(n.aps['interruption-level'], 'active');
+  assert.equal(n.aps.sound, 'default');
+  assert.equal(n.callId, 'c1');
+
+  const scam = callNotification({ fromNumber: '+61491570156', structured: { caller_name: 'unknown', scam_risk: 92, summary_zh: '冒充大使馆' } });
+  assert.equal(scam.aps.alert.title, '疑似诈骗 · +61 491 570 156');
+  assert.equal(scam.aps['interruption-level'], 'passive');
+  assert.equal(JSON.parse(JSON.stringify(scam)).aps.sound, undefined);
+
+  const bare = callNotification({ fromNumber: null, structured: null, summary: 'x'.repeat(300) });
+  assert.equal(bare.aps.alert.title, '未知来电');
+  assert.equal(bare.aps.alert.body.length, 180);
+  assert.equal(callNotification({ fromNumber: '+61412345678' }).aps.alert.body, 'AI 已接听，点开查看详情。');
+  assert.equal(displayNumber('+61258496666'), '+61 2 5849 6666');
+});
+
+test('APNs provider token is an ES256 JWT signed with the .p8 key', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+  // Vercel 里粘贴后换行变成字面 \n 也要能用
+  const token = providerToken({ keyId: 'ABC123DEFG', teamId: '3YDFH675B7', privateKey: pem.replace(/\n/g, '\\n'), now: 1_700_000_000_000 });
+  const [h, c, sig] = token.split('.');
+  assert.deepEqual(JSON.parse(Buffer.from(h, 'base64url')), { alg: 'ES256', kid: 'ABC123DEFG' });
+  assert.deepEqual(JSON.parse(Buffer.from(c, 'base64url')), { iss: '3YDFH675B7', iat: 1_700_000_000 });
+  assert.ok(verify('sha256', Buffer.from(`${h}.${c}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url')));
+  const bodyOnly = pem.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
+  assert.equal(normalizePrivateKey(bodyOnly).trim(), pem.trim());
+});
+
+test('push device tokens are validated and dead ones recognised', () => {
+  assert.ok(validPushToken('a'.repeat(64)));
+  assert.ok(!validPushToken('xyz'));
+  assert.ok(!validPushToken(null));
+  assert.ok(isDeadToken({ status: 410, reason: 'Unregistered' }));
+  assert.ok(isDeadToken({ status: 400, reason: 'BadDeviceToken' }));
+  assert.ok(!isDeadToken({ status: 403, reason: 'InvalidProviderToken' }));
+  assert.ok(!isDeadToken({ status: 200, reason: null }));
+});

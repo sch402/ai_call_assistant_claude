@@ -102,7 +102,8 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | 文件 | 作用 |
 | --- | --- |
 | `api/twilio-voice.js` | Twilio 来电 webhook：校验签名、记录转移来源、黑名单拒接、桥接到 Vapi |
-| `api/vapi-webhook.js` | Vapi 通话结束报告：写入转写、摘要和结构化字段 |
+| `api/vapi-webhook.js` | Vapi 通话结束报告：写入转写、摘要和结构化字段，并推送通知给这位用户 |
+| `lib/push.js` | 推送通知：用 APNs Auth Key 签令牌，经 HTTP/2 推送「来电人 + 摘要」；失效的设备令牌自动删除 |
 | `api/calls.js` | 面板读取通话记录 |
 | `lib/admin/setup.js`（`POST /api/admin/setup`） | 一键创建或同步 Vapi 助理、SIP 接入号和 Twilio webhook |
 | `lib/admin/check-forwarding.js`（`POST /api/admin/check-forwarding`） | 呼叫转移自测：拨打后台里填的手机号 |
@@ -113,7 +114,7 @@ Telstra、Optus、Vodafone 一般都支持这组 GSM 代码；部分虚拟运营
 | `lib/profile.js` | 用户的 AI 助手设置：校验称呼、性别、音色，生成这位用户的助理配置 |
 | `api/app-config.js` | 给 iOS App 的基础配置（代接号码、登录手机号、AI 助手设置、订阅状态） |
 | `api/auth-config.js` | 给 iOS App 登录用的 Supabase 地址和 anon key（公开） |
-| `api/account.js` | `PATCH` 修改 AI 助手设置（称呼、男声 / 女声、音色）；`DELETE` 删除账户（来电记录和登录用户，手机号、订阅记录级联删除） |
+| `api/account.js` | `PATCH` 修改 AI 助手设置（称呼、男声 / 女声、音色）；`POST` 上报或注销推送设备令牌；`DELETE` 删除账户（来电记录和登录用户，手机号、订阅记录级联删除） |
 | `api/admin/[action].js` | 三个管理接口合并成的一个函数，按网址分发到 `lib/admin/` |
 | `api/subscription-sync.js` | App 购买或恢复购买后提交交易，验证苹果签名后立即开通 |
 | `api/appstore-notifications.js` | 苹果服务器通知（续费、过期、退款），更新订阅状态 |
@@ -236,6 +237,25 @@ App 购买（appAccountToken = 用户 ID）→ /api/subscription-sync 验证苹�
 排查：每次分析在 Vercel 日志里留一行「号码分析」（搜到几条、几条含号码、打开了几个网页、模型置信度、是否采用，号码中间打码）。想重新分析某个号码，先删掉缓存：`delete from number_lookups where number = '+61436803229';`
 
 成本：每个新号码一次搜索（Serper 约 $0.0003–0.001，Brave 约 $0.005）；只有搜到含号码的结果时才调用一次 Haiku（约 $0.0003）。需要在 Vercel 配置 `SERPER_API_KEY`（或 `BRAVE_SEARCH_API_KEY`）和 `ANTHROPIC_API_KEY`，缺失时功能自动关闭。
+
+## 推送通知
+
+AI 接完一通电话、通话报告写入后，后端把「来电人 + 摘要」推送到这位用户登录过的所有 iPhone（`lib/push.js`）：
+
+- 标题和 App 列表一致：对方自称的名字和机构（例如「Sarah · City Dental」），没有就显示号码；疑似诈骗前面加「疑似诈骗 ·」。通讯录名字只在手机上，通知里看不到。
+- 内容是中文摘要（最多 180 字）。点通知直接打开这通来电的详情。
+- 诈骗、推销、机器人外呼用 `passive` 级别：静默进通知中心，不响铃、不亮屏。
+- App 每次启动上报设备令牌（`push_tokens` 表）；退出登录时注销这台设备；删除账户时级联删除。苹果说令牌失效（卸载 App 等）时自动删除。
+- 从 Xcode 直接装的调试版走 APNs 沙盒环境，TestFlight 和 App Store 版走正式环境，App 上报令牌时会带上环境。
+
+设置（一次）：
+
+1. Apple Developer › **Certificates, Identifiers & Profiles › Keys › +**，Key Name 随便填，勾选 **Apple Push Notifications service (APNs)**，点 Configure，Environment 选 **Sandbox & Production**，Key Restriction 选 **Team Scoped (All Topics)**。**Continue › Register › Download**，`.p8` 只能下载一次。
+2. Vercel 加环境变量：`APNS_KEY_ID`（页面上的 Key ID）、`APNS_PRIVATE_KEY`（`.p8` 文件的全部内容，直接粘贴）。`APNS_TEAM_ID` 默认 `3YDFH675B7`。然后 **Redeploy**。
+3. Supabase 重新运行一次 `supabase/schema.sql`（新增 `push_tokens` 表）。
+4. iOS：`xcodegen generate` 后工程里会带上 Push Notifications 能力（`project.yml` 的 `entitlements`），自动签名会把它加到 App ID 上，不用手动在 **Signing & Capabilities** 里加。
+
+排查：每次推送在 Vercel 日志里留一行「推送通知」（设备数、成功数、删除的失效令牌、失败原因）。日志出现「APNs 拒绝了令牌」说明三个 `APNS_*` 变量有误。模拟器收不到远程推送，要用真机测试。
 
 ## 防止刷验证码
 

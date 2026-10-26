@@ -96,6 +96,10 @@ final class AppSession {
     }
 
     func signOut() async {
+        // 先注销推送设备（要用登录令牌），否则退出后这台手机还会收到这个账户的来电通知
+        if let token = PushCenter.shared.deviceToken, let client {
+            try? await client.unregisterPush(token: token)
+        }
         if let authConfig, let tokens {
             await SupabaseAuth(config: authConfig).signOut(tokens)
         }

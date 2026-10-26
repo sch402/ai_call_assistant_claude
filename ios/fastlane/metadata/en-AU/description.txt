@@ -7,6 +7,7 @@ Built for the Chinese-speaking community in Australia: the AI replies in English
 KEY FEATURES
 • AI answering: calls you miss, decline, or can't take when busy or out of range are forwarded to the AI
 • Summaries: who called, what it's about, whether to call back, and any deadline, in two or three sentences
+• Instant notifications: see who called and why on your Lock Screen; scam and sales calls arrive silently
 • English and Mandarin: the AI switches language automatically
 • Scam and telemarketing detection: calls impersonating embassies, police, customs, couriers or banks are flagged with a scam risk score and reasons
 • Unknown number lookup: for numbers not in your contacts, a best guess at who it is from public web information, with the source
