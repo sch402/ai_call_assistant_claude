@@ -458,7 +458,7 @@ test('page text: numbers are found in visible text and tel: links', () => {
 });
 
 import { generateKeyPairSync, verify } from 'node:crypto';
-import { callNotification, displayNumber, isDeadToken, normalizePrivateKey, providerToken, validPushToken } from '../lib/push.js';
+import { callNotification, displayNumber, isDeadToken, missingTable, normalizePrivateKey, providerToken, validPushToken } from '../lib/push.js';
 
 test('push notification shows who called and the Chinese summary', () => {
   const n = callNotification({
@@ -510,4 +510,7 @@ test('push device tokens are validated and dead ones recognised', () => {
   assert.ok(isDeadToken({ status: 400, reason: 'BadDeviceToken' }));
   assert.ok(!isDeadToken({ status: 403, reason: 'InvalidProviderToken' }));
   assert.ok(!isDeadToken({ status: 200, reason: null }));
+  assert.ok(missingTable({ code: 'PGRST205', message: "Could not find the table 'public.push_tokens' in the schema cache" }));
+  assert.ok(missingTable({ code: '42P01', message: 'relation "push_tokens" does not exist' }));
+  assert.ok(!missingTable({ code: '23503', message: 'violates foreign key constraint' }));
 });

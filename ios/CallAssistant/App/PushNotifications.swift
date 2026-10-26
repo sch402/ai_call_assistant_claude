@@ -69,6 +69,10 @@ final class PushCenter {
 
     func didRegister(deviceToken data: Data) {
         deviceToken = Self.hex(data)
+        #if DEBUG
+        // 调试用：可以把它贴到 Apple 的 Push Notifications Console 里给这台手机发测试通知
+        print("推送令牌（sandbox）：\(Self.hex(data))")
+        #endif
         Task { await upload() }
     }
 
