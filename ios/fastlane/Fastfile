@@ -1,0 +1,82 @@
+# App Store 上架。文案在 fastlane/metadata/，截图在 fastlane/screenshots/（由 ios/appstore/render-screenshots.mjs 生成）。
+# 所有命令都在 ios/ 目录运行，先 bundle install 一次。
+#
+#   bundle exec fastlane metadata   上传文案、截图、分类、审核信息（不上传安装包，不提交审核）
+#   bundle exec fastlane beta       打包并上传到 TestFlight（也可以直接用 Xcode 的 Archive › Distribute App）
+#   bundle exec fastlane release    打包、上传安装包和全部资料，停在「准备提交」，最后在网页上点提交
+#
+# 登录用 App Store Connect API 密钥（App Store Connect › 用户和访问 › 集成 › App Store Connect API，角色选 App 管理）。
+# 下载的 .p8 文件不要放进仓库，用环境变量指过去：
+#   export ASC_KEY_ID=XXXXXXXXXX
+#   export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+#   export ASC_KEY_PATH=~/keys/AuthKey_XXXXXXXXXX.p8
+# 审核联系人（不提交到仓库）：
+#   export REVIEW_FIRST_NAME=... REVIEW_LAST_NAME=... REVIEW_PHONE="+61 4xx xxx xxx"
+
+default_platform(:ios)
+
+# Fastfile 里的代码在 fastlane/ 目录下执行
+APP_VERSION = File.read("../project.yml", encoding: "UTF-8")[/MARKETING_VERSION:\s*"([^"]+)"/, 1]
+
+platform :ios do
+  before_all do
+    app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_filepath: File.expand_path(ENV.fetch("ASC_KEY_PATH")),
+      in_house: false
+    )
+  end
+
+  # deliver 的公共参数
+  def deliver_options
+    review = {
+      first_name: ENV["REVIEW_FIRST_NAME"],
+      last_name: ENV["REVIEW_LAST_NAME"],
+      phone_number: ENV["REVIEW_PHONE"]
+    }.compact
+    {
+      app_version: APP_VERSION,
+      metadata_path: "./fastlane/metadata",
+      screenshots_path: "./fastlane/screenshots",
+      overwrite_screenshots: true,
+      app_review_information: review, # 其余审核信息（邮箱、演示账号、备注）在 metadata/review_information/
+      platform: "ios",
+      force: true,                   # 不生成 HTML 预览，直接上传
+      precheck_include_in_app_purchases: false, # 用 API 密钥时 precheck 读不了内购
+      submit_for_review: false,
+      automatic_release: false
+    }
+  end
+
+  desc "上传文案、截图和审核信息"
+  lane :metadata do
+    deliver(**deliver_options, skip_binary_upload: true)
+  end
+
+  desc "生成工程、构建号 +1、打包"
+  private_lane :build do
+    Dir.chdir("..") { sh("xcodegen", "generate") }
+    latest = latest_testflight_build_number(version: APP_VERSION, initial_build_number: 0)
+    build_app(
+      project: "CallAssistant.xcodeproj",
+      scheme: "CallAssistant",
+      export_method: "app-store",
+      xcargs: "CURRENT_PROJECT_VERSION=#{latest + 1} -allowProvisioningUpdates",
+      output_directory: "./build",
+      clean: true
+    )
+  end
+
+  desc "打包并上传到 TestFlight"
+  lane :beta do
+    build
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+
+  desc "打包并上传安装包、文案、截图（不提交审核）"
+  lane :release do
+    build
+    deliver(**deliver_options, skip_binary_upload: false, run_precheck_before_submit: false)
+  end
+end

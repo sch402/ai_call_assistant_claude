@@ -1,0 +1,21 @@
+HOW TO SIGN IN
+The app signs in with an Australian mobile number and an SMS code. We set up a test number that does not send an SMS:
+• Mobile number: 0491 570 006 (or 491 570 006 after the +61 prefix)
+• Verification code: 246810
+The demo account already contains sample calls so you can see the call list, call details, scam detection and the unknown number lookup.
+
+WHAT THE APP DOES
+Call Assistant answers calls the user misses. The user turns on conditional call forwarding with their Australian carrier (standard GSM codes such as **004*<number>#). Missed calls are forwarded to our AI assistant (via Twilio and Vapi), which tells the caller it is an AI assistant, asks who is calling and why, and then posts a summary to the app. Calls are not recorded; only the transcript and summary are stored.
+
+Answering a real call requires an Australian mobile SIM with call forwarding, so it cannot be tested outside Australia. The sample calls in the demo account show the result. The 代接设置 (Forwarding) tab only copies the carrier code; iOS does not allow apps to dial forwarding codes, so the user pastes it into the Phone keypad.
+
+SUBSCRIPTION
+Call Assistant Pro (monthly and yearly auto-renewable subscriptions) enables AI answering. The demo account has no subscription, so the purchase flow can be tested with a Sandbox account from 我的 (Me) > 来电助手 Pro, or the banner on the 来电 (Calls) tab. Restore Purchases, Terms of Use and Privacy Policy links are on the subscription screen.
+
+PERMISSIONS
+Contacts (optional): used only on the device to show saved names for caller numbers. Contacts are never uploaded.
+
+ACCOUNT DELETION
+我的 (Me) > 删除账户 (Delete Account) deletes the account and all data.
+
+The app interface is in Simplified Chinese. Contact: support@home-au.com

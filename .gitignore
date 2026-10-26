@@ -10,3 +10,8 @@ ios/CallAssistant/Info.plist
 xcuserdata/
 DerivedData/
 *.xcworkspace/xcuserdata/
+# fastlane 运行时生成
+ios/fastlane/report.xml
+ios/fastlane/README.md
+ios/build/
+ios/appstore/build/

@@ -33,11 +33,15 @@ open CallAssistant.xcodeproj
 ```
 
 1. 后端地址写在 `project.yml` 的 `API_HOST`（默认 `aicallassistantclaude.vercel.app`），编译时写进 Info.plist，用户不用填。换了 Vercel 域名就改这里，再运行一次 `xcodegen generate`。
-2. 签名已写在 `project.yml`：Bundle ID `com.homeau.callassistant`，团队 （`DEVELOPMENT_TEAM` 填的是 Team ID），自动签名。生成工程后不用再到 Signing & Capabilities 里选 Team。
+2. 签名已写在 `project.yml`：Bundle ID `com.homeau.callassistant`，团队 ID `3YDFH675B7`（`DEVELOPMENT_TEAM`），自动签名。生成工程后不用再到 Signing & Capabilities 里选 Team。
 3. 连接 iPhone，选择设备，按 ⌘R 运行。
 4. 运行单元测试：⌘U。
 
 `CallAssistant.xcodeproj` 和 `Info.plist` 由 XcodeGen 生成，不提交到仓库。增删源码文件或修改 `project.yml` 后，重新运行一次 `xcodegen generate`。
+
+## 上架 App Store
+
+文案、截图、预览视频、审核资料和上传步骤见 [appstore/README.md](appstore/README.md)。
 
 ## 后端要求
 
@@ -69,6 +73,8 @@ ios/
 │   ├── Services/                网络请求、Supabase 登录、会话、钥匙串
 │   └── Resources/Assets.xcassets  图标、开屏 Logo、主题色
 ├── CallAssistantTests/          单元测试
+├── fastlane/                    App Store 文案、截图、上传命令
+├── appstore/                    截图和预览视频生成脚本、上架指南
 └── docs/                        图标预览与生成脚本
 ```
 

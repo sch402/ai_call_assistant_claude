@@ -1,0 +1,4 @@
+source "https://rubygems.org"
+
+# 上传 App Store 文案和截图（fastlane deliver）。用法见 ios/appstore/README.md
+gem "fastlane", ">= 2.228"

@@ -1,0 +1,40 @@
+Never lose an important call again. Call Assistant answers the calls you miss and tells you what they were about.
+
+When you're in a meeting, driving, or just don't want to pick up an unknown number, your carrier's call forwarding sends the call to an AI assistant. It politely finds out who is calling and why, and a few seconds after the call ends you get a clear summary in the app.
+
+Built for the Chinese-speaking community in Australia: the AI replies in English or Mandarin, matching the caller. The app interface and call summaries are in Simplified Chinese.
+
+KEY FEATURES
+• AI answering: calls you miss, decline, or can't take when busy or out of range are forwarded to the AI
+• Summaries: who called, what it's about, whether to call back, and any deadline, in two or three sentences
+• English and Mandarin: the AI switches language automatically
+• Scam and telemarketing detection: calls impersonating embassies, police, customs, couriers or banks are flagged with a scam risk score and reasons
+• Unknown number lookup: for numbers not in your contacts, a best guess at who it is from public web information, with the source
+• Contact names: matched on your phone only, never uploaded
+• Your name, your voice: "This is Charlie's AI assistant", in a male or female voice and the style you choose
+• One-tap call back, copy number, or block: blocked numbers are rejected automatically
+• Full transcript of every call
+
+GETTING STARTED
+1. Sign in with your Australian mobile number and an SMS code
+2. In Forwarding, copy the forwarding code, paste it into the Phone keypad and dial
+3. Calls you miss will appear in the Calls list
+
+Keep your number and your SIM. Works with Australian carriers that support conditional call forwarding, including Telstra, Optus and Vodafone. Turn forwarding off in one tap before travelling overseas to avoid roaming charges.
+
+PRIVACY
+• No call recordings; only the transcript and summary are stored
+• Data is stored in Australia (Sydney)
+• The AI tells callers it is an AI assistant and never shares your surname, address or account details, or makes promises on your behalf
+• Delete your account and all data at any time in the app
+
+SUBSCRIPTION
+Call Assistant Pro is an auto-renewing subscription, billed monthly or yearly, with unlimited AI answering minutes.
+• Payment is charged to your Apple ID account at confirmation of purchase
+• The subscription renews automatically unless auto-renew is turned off at least 24 hours before the end of the current period
+• Manage or cancel any time in Settings › Apple ID › Subscriptions
+• Call forwarding is provided by your carrier and may be charged under your plan
+
+Terms of Use: https://aicallassistantclaude.vercel.app/terms.html
+Privacy Policy: https://aicallassistantclaude.vercel.app/privacy.html
+Contact: support@home-au.com
