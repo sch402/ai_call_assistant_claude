@@ -32,10 +32,15 @@ platform :ios do
   # deliver 的公共参数
   def deliver_options
     review = {
-      first_name: ENV["REVIEW_FIRST_NAME"],
-      last_name: ENV["REVIEW_LAST_NAME"],
-      phone_number: ENV["REVIEW_PHONE"]
-    }.compact
+      first_name: ENV["REVIEW_FIRST_NAME"].to_s.strip,
+      last_name: ENV["REVIEW_LAST_NAME"].to_s.strip,
+      phone_number: ENV["REVIEW_PHONE"].to_s.strip
+    }
+    # 苹果要求审核联系人的名、姓、电话（+ 国家码）都必须有，缺了会在上传到一半时才报错，这里先检查
+    missing = { first_name: "REVIEW_FIRST_NAME", last_name: "REVIEW_LAST_NAME", phone_number: "REVIEW_PHONE" }
+              .select { |key, _| review[key].empty? }.values
+    UI.user_error!("请先设置审核联系人：#{missing.join('、')}（见 ios/appstore/README.md 第三节）") unless missing.empty?
+    UI.user_error!("REVIEW_PHONE 要以 + 和国家码开头，例如 \"+61 412 345 678\"") unless review[:phone_number].start_with?("+")
     {
       app_version: APP_VERSION,
       metadata_path: "./fastlane/metadata",
