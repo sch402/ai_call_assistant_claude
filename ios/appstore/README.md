@@ -134,6 +134,24 @@ fastlane 推不了下面这些，按顺序在 App Store Connect 里填。
 - 每个产品的 **Review Information › Screenshot** 上传 `ios/appstore/preview/iap-review-subscription.png`；Review Notes 可以写：`Open the subscription screen from 我的 (Me) > 来电助手 Pro, or the banner at the top of the 来电 (Calls) tab.`
 - 版本页面下方 **In-App Purchases and Subscriptions** 里点 **Select In-App Purchases or Subscriptions**，把两个产品加到这个版本。
 
+#### 7 天免费试用
+
+每个产品 › **Subscription Prices** 下方 **Introductory Offers** › **+** › **Create Introductory Offer**：
+- Countries or Regions：**Australia**
+- Start Date：今天；End Date：**No End Date**
+- Offer Type：**Free**，Duration：**1 Week**
+
+月付和年付都加上。苹果按订阅组判断资格：同一个 Apple ID 用过一次试用，就不会再有。App 的订阅页会自动显示「免费试用 7 天」和试用后的价格，没有资格的用户看不到。试用期内后端按「订阅有效」处理，试用结束自动扣费或到期。
+
+#### App 里显示「暂时无法获取订阅方案」
+
+说明苹果对这两个产品 ID 返回了空列表，App 代码没问题，检查这几项：
+1. **Subscriptions** 里两个产品的状态必须是 **Approved**（或 **Ready for Sale**）。如果是 **Ready to Submit** / **Waiting for Review** / **Developer Action Needed**，说明第一次提交 App 时没把订阅挂到版本上；在下一个版本的 **In-App Purchases and Subscriptions** 里选上它们，随版本一起提交。
+2. 每个产品的 **Availability** 包含 **Australia**。
+3. **Business** 里 **Paid Apps Agreement** 是 **Active**，银行和税务信息填完。
+4. 产品 ID 和 `project.yml` 的 `IAP_PRODUCT_IDS` 完全一致。
+5. 刚批准的产品最多要等几个小时才在 App Store 生效。
+
 ### 5. App Previews（可选）
 
 1.0.0 版本页面 › 语言切到 **Chinese (Simplified)** › **Previews and Screenshots** › **iPhone 6.9" Display**，把 `ios/appstore/preview/app-preview-zh-Hans.mp4` 拖进去。上传后可以设置 **Poster Frame**，建议选 3 秒左右（出现第一通来电时）。

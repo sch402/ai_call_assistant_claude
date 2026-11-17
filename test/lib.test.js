@@ -297,6 +297,15 @@ test('Apple transactions become subscription rows; stale notifications are ignor
   assert.equal(subscriptionRow({ userId: 'u', transaction: tx, existing: { auto_renew: false } }).auto_renew, false);
   // 不是自动续期订阅
   assert.equal(subscriptionRow({ userId: 'u', transaction: { originalTransactionId: '1' } }), null);
+  // 7 天免费试用（offerType 1 = 首次优惠，价格 0）：试用期内照常开通，到期时间就是试用结束
+  const trial = subscriptionRow({
+    userId: 'u',
+    transaction: { ...tx, offerType: 1, offerDiscountType: 'FREE_TRIAL', price: 0, expiresDate: Date.parse('2026-10-27T00:00:00Z') },
+    renewal: { autoRenewStatus: 1 },
+    notificationType: 'SUBSCRIBED',
+  });
+  assert.equal(trial.status, 'active');
+  assert.equal(trial.expires_at, '2026-10-27T00:00:00.000Z');
 });
 
 import { normalizeName, profileView, validateProfileUpdate } from '../lib/profile.js';

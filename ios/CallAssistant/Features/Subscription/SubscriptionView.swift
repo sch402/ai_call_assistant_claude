@@ -13,6 +13,11 @@ struct SubscriptionView: View {
     private var subscription: SubscriptionInfo? { session.config?.subscription }
     private var isSubscribed: Bool { subscription?.state == .active }
     private var selected: Product? { store.products.first { $0.id == selectedID } ?? store.products.first }
+    /// 选中的方案有免费试用、且这个 Apple ID 还有资格时，返回试用时长（「7 天」）
+    private var selectedTrial: String? {
+        guard let selected, store.trialEligibleIDs.contains(selected.id) else { return nil }
+        return PlanCard.freeTrial(selected)
+    }
 
     var body: some View {
         NavigationStack {
@@ -109,7 +114,8 @@ struct SubscriptionView: View {
         } else {
             VStack(spacing: 12) {
                 ForEach(store.products) { product in
-                    PlanCard(product: product, isSelected: product.id == selected?.id)
+                    PlanCard(product: product, isSelected: product.id == selected?.id,
+                             trialEligible: store.trialEligibleIDs.contains(product.id))
                         .onTapGesture { selectedID = product.id }
                 }
             }
@@ -128,7 +134,8 @@ struct SubscriptionView: View {
                 }
             } label: {
                 ZStack {
-                    Text("订阅").opacity(store.isPurchasing ? 0 : 1)
+                    Text(selectedTrial.map { String(localized: "免费试用 \($0)") } ?? String(localized: "订阅"))
+                        .opacity(store.isPurchasing ? 0 : 1)
                     if store.isPurchasing { ProgressView().tint(.white) }
                 }
                 .font(.headline)
@@ -139,10 +146,17 @@ struct SubscriptionView: View {
             .buttonBorderShape(.roundedRectangle(radius: 16))
             .disabled(selected == nil || store.isPurchasing)
 
-            Text("订阅按所选周期自动续费，可随时在系统设置中取消。")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            // 按审核指南 3.1.2：试用结束后的价格和续费方式要写清楚
+            Group {
+                if let trial = selectedTrial, let selected {
+                    Text("免费试用 \(trial)，之后 \(PlanCard.priceLabel(selected))，自动续费。试用结束前在系统设置中取消，不会收费。")
+                } else {
+                    Text("订阅按所选周期自动续费，可随时在系统设置中取消。")
+                }
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
                 Button("恢复购买") { Task { await store.restore(session: session) } }
@@ -181,17 +195,19 @@ private struct FeatureRow: View {
 private struct PlanCard: View {
     let product: Product
     let isSelected: Bool
+    /// 这个 Apple ID 还能享受免费试用（用过的不再显示）
+    let trialEligible: Bool
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(product.displayName).font(.headline)
-                if let offer = introOffer {
-                    Text(offer).font(.caption).foregroundStyle(Color.accentColor)
+                if trialEligible, let trial = Self.freeTrial(product) {
+                    Text("免费试用 \(trial)").font(.caption.weight(.semibold)).foregroundStyle(Color.accentColor)
                 }
             }
             Spacer()
-            Text(priceLabel).font(.headline.monospacedDigit())
+            Text(Self.priceLabel(product)).font(.headline.monospacedDigit())
         }
         .padding(18)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -202,18 +218,16 @@ private struct PlanCard: View {
         .contentShape(Rectangle())
     }
 
-    private var priceLabel: String {
+    /// 「A$14.99 / 月」
+    static func priceLabel(_ product: Product) -> String {
         guard let period = product.subscription?.subscriptionPeriod else { return product.displayPrice }
         return "\(product.displayPrice) / \(period.label)"
     }
 
-    /// 免费试用等首次优惠。是否有资格由苹果在付款页面最终确认。
-    private var introOffer: String? {
-        guard let offer = product.subscription?.introductoryOffer else { return nil }
-        switch offer.paymentMode {
-        case .freeTrial: return String(localized: "免费试用 \(offer.period.duration)")
-        default: return nil
-        }
+    /// 免费试用时长（「7 天」）。试用在 App Store Connect 的 Introductory Offer 里设置；最终资格由苹果在付款页面确认。
+    static func freeTrial(_ product: Product) -> String? {
+        guard let offer = product.subscription?.introductoryOffer, offer.paymentMode == .freeTrial else { return nil }
+        return offer.period.duration
     }
 }
 

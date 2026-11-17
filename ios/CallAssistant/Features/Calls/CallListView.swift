@@ -11,42 +11,31 @@ struct CallListView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            content
-                .navigationTitle("来电")
-                .navigationDestination(for: CallRecord.self) { call in
-                    CallDetailView(call: call, store: store)
-                }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    VStack(spacing: 8) {
-                        if let subscription = session.config?.subscription {
-                            SubscriptionBanner(
-                                info: subscription,
-                                onSubscribe: { session.showSubscription = true },
-                                onCancelForwarding: { session.selectedTab = .forwarding }
-                            )
-                        }
-                        Picker("筛选", selection: $store.filter) {
-                            ForEach(CallFilter.allCases) { Text($0.label).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                    .background(.bar)
-                }
-                .refreshable { await store.load(using: session.client) }
-                .task {
-                    await store.load(using: session.client)
-                    await openPendingCall()
-                }
-                // 点了来电通知：打开那通来电
-                .onChange(of: push.pendingCallID) { _, id in
-                    if id != nil { Task { await openPendingCall() } }
-                }
-                // App 在前台时来了新通知：刷新列表
-                .onChange(of: push.callsChanged) { _, _ in
-                    Task { await store.load(using: session.client) }
-                }
+            // 提示条和筛选固定在上方，只有列表滚动。（以前放在 safeAreaInset 里配大标题，
+            // iOS 26 上滚动时大标题收起，整个顶部跟着上下移动，还留下一块空白）
+            VStack(spacing: 0) {
+                header
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .navigationTitle("来电")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: CallRecord.self) { call in
+                CallDetailView(call: call, store: store)
+            }
+            .refreshable { await store.load(using: session.client) }
+            .task {
+                await store.load(using: session.client)
+                await openPendingCall()
+            }
+            // 点了来电通知：打开那通来电
+            .onChange(of: push.pendingCallID) { _, id in
+                if id != nil { Task { await openPendingCall() } }
+            }
+            // App 在前台时来了新通知：刷新列表
+            .onChange(of: push.callsChanged) { _, _ in
+                Task { await store.load(using: session.client) }
+            }
         }
     }
 
@@ -62,6 +51,25 @@ struct CallListView: View {
             store.filter = .all
             path = [call]
         }
+    }
+
+    private var header: some View {
+        VStack(spacing: 8) {
+            if let subscription = session.config?.subscription {
+                SubscriptionBanner(
+                    info: subscription,
+                    onSubscribe: { session.showSubscription = true },
+                    onCancelForwarding: { session.selectedTab = .forwarding }
+                )
+            }
+            Picker("筛选", selection: $store.filter) {
+                ForEach(CallFilter.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(.horizontal)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
     }
 
     @ViewBuilder

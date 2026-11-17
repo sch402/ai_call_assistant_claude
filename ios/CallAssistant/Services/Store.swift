@@ -9,6 +9,8 @@ import StoreKit
 @Observable
 final class Store {
     private(set) var products: [Product] = []
+    /// 有免费试用、且这个 Apple ID 还能享受试用的产品 ID（苹果按订阅组判断：用过一次就没有了）
+    private(set) var trialEligibleIDs: Set<String> = []
     private(set) var isLoadingProducts = false
     private(set) var isPurchasing = false
     var errorMessage: String?
@@ -24,12 +26,19 @@ final class Store {
     func loadProducts() async {
         guard products.isEmpty, !isLoadingProducts else { return }
         isLoadingProducts = true
+        errorMessage = nil
         defer { isLoadingProducts = false }
         do {
             let ids = Self.productIDs
             let loaded = try await Product.products(for: ids)
             // 按 project.yml 里的顺序展示
             products = loaded.sorted { (ids.firstIndex(of: $0.id) ?? 0) < (ids.firstIndex(of: $1.id) ?? 0) }
+            var eligible: Set<String> = []
+            for product in products where product.subscription?.introductoryOffer?.paymentMode == .freeTrial {
+                if await product.subscription?.isEligibleForIntroOffer == true { eligible.insert(product.id) }
+            }
+            trialEligibleIDs = eligible
+            // 苹果返回空列表：产品还没在 App Store Connect 里批准上架，或付费 App 协议未生效（见 ios/appstore/README.md）
             if products.isEmpty { errorMessage = String(localized: "暂时无法获取订阅方案，请稍后再试。") }
         } catch {
             errorMessage = String(localized: "暂时无法获取订阅方案：\(error.localizedDescription)")

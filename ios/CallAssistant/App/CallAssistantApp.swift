@@ -28,14 +28,16 @@ struct CallAssistantApp: App {
     }
 }
 
-/// 未登录 → 登录页；登录后先读配置；还没设置称呼和声音 → 首次引导；否则进入主界面。
+/// 第一次打开 → 功能介绍；未登录 → 登录页；登录后先读配置；还没设置称呼和声音 → 首次引导；否则进入主界面。
 struct RootView: View {
     @Environment(AppSession.self) private var session
+    /// 功能介绍看过（或跳过）一次后不再显示。已经登录的老用户升级后也不会看到。
+    @AppStorage("intro.seen") private var introSeen = false
 
-    private enum Stage { case login, loading, onboarding, main }
+    private enum Stage { case intro, login, loading, onboarding, main }
 
     private var stage: Stage {
-        guard session.isSignedIn else { return .login }
+        guard session.isSignedIn else { return introSeen ? .login : .intro }
         guard let config = session.config else { return .loading }
         return config.profile?.complete == false ? .onboarding : .main
     }
@@ -43,6 +45,7 @@ struct RootView: View {
     var body: some View {
         Group {
             switch stage {
+            case .intro: IntroView { introSeen = true }
             case .login: LoginView()
             case .loading: ConfigLoadingView()
             case .onboarding: OnboardingView()

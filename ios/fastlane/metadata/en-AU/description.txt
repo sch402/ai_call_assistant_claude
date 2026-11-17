@@ -30,7 +30,7 @@ PRIVACY
 • Delete your account and all data at any time in the app
 
 SUBSCRIPTION
-Call Assistant Pro is an auto-renewing subscription, billed monthly or yearly, with unlimited AI answering minutes.
+Call Assistant Pro is an auto-renewing subscription, billed monthly or yearly, with unlimited AI answering minutes. New subscribers get a 7-day free trial; cancel before it ends and you won't be charged.
 • Payment is charged to your Apple ID account at confirmation of purchase
 • The subscription renews automatically unless auto-renew is turned off at least 24 hours before the end of the current period
 • Manage or cancel any time in Settings › Apple ID › Subscriptions
