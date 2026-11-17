@@ -50,6 +50,9 @@ targets:
       path: CallAssistant/Info.plist
       properties:
         CFBundleDisplayName: 来电助手
+        # XcodeGen 默认写死 1.0 / 1，这里改为读上面的 MARKETING_VERSION / CURRENT_PROJECT_VERSION
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         APIHost: $(API_HOST)
         NSContactsUsageDescription: 用来在来电记录里显示通讯录中保存的名字。通讯录只在这台手机上匹配，不会上传。
         IAPProductIDs: $(IAP_PRODUCT_IDS)
@@ -84,6 +87,9 @@ targets:
       path: NotificationService/Info.plist
       properties:
         CFBundleDisplayName: 来电助手通知
+        # 扩展的版本号必须和 App 一致，否则上传时校验失败
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: zh-Hans
         NSContactsUsageDescription: 用来在来电通知里显示通讯录中保存的名字。通讯录只在这台手机上匹配，不会上传。
         NSExtension:
