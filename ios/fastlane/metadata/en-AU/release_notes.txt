@@ -1,4 +1,3 @@
-• 7-day free trial for new subscribers
-• A quick feature tour on first launch
-• Smoother scrolling in the Calls list
-• The AI is more polite and no longer hangs up on ordinary callers too early
+• Follow the conversation live in the app while the AI is on the call
+• Clearer call status: on the call, summarising, or caller hung up
+• Numbers publicly reported as spam now raise the scam risk and are flagged in the list
