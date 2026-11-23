@@ -114,7 +114,10 @@ test('assistant config is speech-to-speech, bilingual and privacy-safe', () => {
   assert.match(prompt, /This is an AI phone assistant/);
   assert.match(prompt, /我是AI电话助手/);
   const anon = assistantConfig({ ownerName: '', gender: 'male', voiceStyle: 'mature', serverUrl: 'https://x.test', webhookSecret: 's', maxCallSeconds: 300 });
-  assert.match(anon.model.messages[0].content, /an AI assistant taking calls for this number/);
+  assert.match(anon.model.messages[0].content, /this is an AI assistant\. How can I help\?/);
+  // 自我介绍不说「taking calls for this number」这类生硬的话
+  assert.doesNotMatch(anon.model.messages[0].content, /taking calls for this number|I just take calls/);
+  assert.match(prompt, /never talk over the caller/);
   assert.doesNotMatch(anon.model.messages[0].content, /Michael/);
   assert.match(prompt, /no goodbye, no pleasantries/);
   assert.equal(voiceFor({ gender: 'female', style: 'mature' }), 'marin');
