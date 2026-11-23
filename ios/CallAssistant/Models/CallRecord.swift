@@ -46,6 +46,29 @@ struct CallRecord: Decodable, Identifiable, Hashable {
     let summary: String?
     let structured: CallAnalysis?
     let transcript: String?
+    /// 号码在公开网页上被举报为骚扰 / 推销电话（陌生号码分析的缓存，后端 api/calls.js 附带）
+    let spamReport: SpamReport?
+}
+
+struct SpamReport: Decodable, Hashable {
+    /// 0–100
+    let confidence: Int
+}
+
+/// 这通电话现在处于什么阶段（后端 calls.status：answering / ended / completed，以及转写内容）
+enum CallPhase: Equatable {
+    /// 正在通话（AI 和对方正在说话）
+    case live
+    /// 已挂断，几秒内会收到 AI 摘要
+    case summarizing
+    /// 接通后对方没说话就挂断了（多为自动外呼程序）
+    case hungUpSilently
+    /// 对方没说话，AI 结束了通话
+    case silent
+    /// 已结束，但没有收到通话报告
+    case noReport
+    /// 正常结束，有摘要
+    case done
 }
 
 /// 通话结束后 AI 提取的结构化信息（lib/assistant.js 里的 STRUCTURED_SCHEMA）。
@@ -109,7 +132,9 @@ extension CallRecord {
     }
 
     var isBlocked: Bool { status == "blocked" }
-    var isInProgress: Bool { status == "answering" }
+    var isInProgress: Bool { phase() == .live }
+    /// 正在通话或等摘要：界面需要隔几秒刷新一次
+    var isUpdating: Bool { [.live, .summarizing].contains(phase()) }
     /// 订阅失效期间转过来的来电：没有接听，直接拒接了
     var isUnpaid: Bool { status == "unpaid" }
 
@@ -130,8 +155,48 @@ extension CallRecord {
     var headline: String {
         if isBlocked { return String(localized: "黑名单号码，已直接拒接") }
         if isUnpaid { return String(localized: "订阅已过期，这通电话没有接听") }
-        if isInProgress { return String(localized: "通话中，或通话报告尚未生成") }
-        return structured?.summaryZh ?? summary ?? String(localized: "没有生成摘要")
+        switch phase() {
+        case .live: return String(localized: "正在通话…")
+        case .summarizing: return String(localized: "通话已结束，正在生成摘要…")
+        case .hungUpSilently: return String(localized: "对方自动挂断")
+        case .silent: return String(localized: "对方没有说话")
+        case .noReport: return String(localized: "通话已结束，没有生成摘要")
+        case .done: return structured?.summaryZh ?? summary ?? String(localized: "没有生成摘要")
+        }
+    }
+
+    /// 单次通话最长 MAX_CALL_SECONDS（默认 300 秒）。超过这个时间还显示「通话中」的旧记录，按已结束处理。
+    private static let maxLiveSeconds: TimeInterval = 10 * 60
+    /// 挂断后等通话报告的时间，超过就不再显示「正在生成摘要」
+    private static let reportWaitSeconds: TimeInterval = 2 * 60
+
+    /// 对方说过话（转写里有 User 的发言）
+    var callerSpoke: Bool {
+        transcript?.split(separator: "\n").contains { $0.hasPrefix("User:") } ?? false
+    }
+
+    func phase(now: Date = Date()) -> CallPhase {
+        let age = now.timeIntervalSince(createdAt)
+        switch status {
+        case "answering":
+            if age < Self.maxLiveSeconds { return .live }
+            return callerSpoke ? .noReport : .hungUpSilently
+        case "ended":
+            // Twilio 已报告挂断，Vapi 的通话报告还没到
+            if age < (durationSeconds ?? 0) + Self.reportWaitSeconds { return .summarizing }
+            return callerSpoke ? .noReport : .hungUpSilently
+        default:
+            guard !callerSpoke else { return .done }
+            // 对方一句话没说：多数是自动外呼程序接通后马上挂断
+            return endedReason?.contains("customer") == true ? .hungUpSilently : .silent
+        }
+    }
+
+    /// 诈骗风险：AI 的判断和号码被公开举报的可信度，取较高的一个
+    func riskScore(lookup: NumberLookup? = nil) -> Int? {
+        let reported = lookup?.kind == .spamReport ? lookup?.confidence : spamReport?.confidence
+        let scores = [structured?.scamRisk.map { Int($0) }, reported].compactMap { $0 }
+        return scores.max()
     }
 
     var recommendation: String? {

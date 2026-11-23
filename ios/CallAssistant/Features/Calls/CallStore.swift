@@ -42,6 +42,9 @@ final class CallStore {
         }
     }
 
+    /// 有正在通话或等摘要的来电：列表隔几秒刷新一次
+    var hasUpdatingCalls: Bool { calls.contains(where: \.isUpdating) }
+
     func block(_ call: CallRecord, using client: APIClient?) async -> Bool {
         guard let client, let number = call.dialableNumber else { return false }
         do {

@@ -40,6 +40,12 @@ struct APIClient {
         return response.calls
     }
 
+    /// 取一通来电的最新内容（通话进行中时刷新实时转写）
+    func call(id: String) async throws -> CallRecord? {
+        let response: CallsResponse = try await get("api/calls", query: ["id": id])
+        return response.calls.first
+    }
+
     /// 陌生号码分析：公开网络上这个号码可能属于谁。没找到时返回 nil。
     func lookupNumber(_ number: String) async throws -> NumberLookup? {
         struct Response: Decodable { let lookup: NumberLookup? }

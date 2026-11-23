@@ -12,16 +12,20 @@ struct CallDetailView: View {
     @State private var blocked = false
     @State private var copied = false
     @State private var lookup: NumberLookup?
+    /// 通话进行中或等摘要时，每 2 秒从后端取一次最新内容（实时转写）
+    @State private var refreshed: CallRecord?
+
+    private var current: CallRecord { refreshed ?? call }
 
     var body: some View {
         List {
             Section {
                 HStack(spacing: 14) {
-                    CategoryBadge(category: call.category, size: 52)
+                    CategoryBadge(category: current.category, size: 52)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(call.displayTitle(contactName: contacts.name(for: call.fromNumber)))
+                        Text(current.displayTitle(contactName: contacts.name(for: current.fromNumber)))
                             .font(.title3.weight(.semibold))
-                        Text(call.createdAt, format: .dateTime.month().day().hour().minute())
+                        Text(current.createdAt, format: .dateTime.month().day().hour().minute())
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -31,9 +35,16 @@ struct CallDetailView: View {
             }
 
             Section("AI 摘要") {
-                Text(call.headline)
-                    .font(.body)
-                    .textSelection(.enabled)
+                HStack(spacing: 10) {
+                    if current.isUpdating { ProgressView() }
+                    Text(current.headline)
+                        .font(.body)
+                        .textSelection(.enabled)
+                }
+            }
+
+            if current.isInProgress {
+                liveTranscriptSection
             }
 
             Section {
@@ -41,13 +52,13 @@ struct CallDetailView: View {
                     NumberLookupRow(lookup: lookup)
                         .transition(.opacity)
                 }
-                InfoRow(label: "来电号码", value: call.fromNumber.map(PhoneFormat.display))
-                InfoRow(label: "来意", value: call.structured?.purpose)
-                InfoRow(label: "回电号码", value: call.structured?.callbackNumber)
-                InfoRow(label: "时间要求", value: call.structured?.deadline)
-                InfoRow(label: "判定理由", value: call.structured?.scamReasons?.joined(separator: "；"))
-                InfoRow(label: "通话时长", value: call.durationSeconds.map { "\(Int($0.rounded())) 秒" })
-                if call.attributed == false {
+                InfoRow(label: "来电号码", value: current.fromNumber.map(PhoneFormat.display))
+                InfoRow(label: "来意", value: current.structured?.purpose)
+                InfoRow(label: "回电号码", value: current.structured?.callbackNumber)
+                InfoRow(label: "时间要求", value: current.structured?.deadline)
+                InfoRow(label: "判定理由", value: current.structured?.scamReasons?.joined(separator: "；"))
+                InfoRow(label: "通话时长", value: current.durationSeconds.map { "\(Int($0.rounded())) 秒" })
+                if current.attributed == false {
                     InfoRow(label: "转移来源", value: "运营商未提供，无法确认是转给你的来电")
                 }
             } header: {
@@ -58,7 +69,7 @@ struct CallDetailView: View {
                 }
             }
 
-            if let transcript = call.transcript, !transcript.isEmpty {
+            if !current.isInProgress, let transcript = current.transcript, !transcript.isEmpty {
                 Section {
                     DisclosureGroup("完整转写") {
                         Text(transcript)
@@ -69,7 +80,7 @@ struct CallDetailView: View {
                 }
             }
 
-            if let number = call.dialableNumber {
+            if let number = current.dialableNumber {
                 Section {
                     Button {
                         if let url = URL(string: "tel:\(number)") { openURL(url) }
@@ -86,22 +97,48 @@ struct CallDetailView: View {
                     Button(role: .destructive) {
                         confirmBlock = true
                     } label: {
-                        Label(blocked || call.isBlocked ? "已在黑名单" : "拉黑这个号码", systemImage: "hand.raised.fill")
+                        Label(blocked || current.isBlocked ? "已在黑名单" : "拉黑这个号码", systemImage: "hand.raised.fill")
                     }
-                    .disabled(blocked || call.isBlocked)
+                    .disabled(blocked || current.isBlocked)
                 }
             }
         }
         .navigationTitle("来电详情")
         .animation(.easeOut(duration: 0.25), value: lookup)
+        .animation(.easeOut(duration: 0.25), value: current)
         .task(id: call.id) { await loadLookup() }
+        .task(id: current.isUpdating) { await followLiveCall() }
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("拉黑 \(PhoneFormat.display(call.dialableNumber ?? ""))？", isPresented: $confirmBlock, titleVisibility: .visible) {
+        .confirmationDialog("拉黑 \(PhoneFormat.display(current.dialableNumber ?? ""))？", isPresented: $confirmBlock, titleVisibility: .visible) {
             Button("拉黑", role: .destructive) {
-                Task { blocked = await store.block(call, using: session.client) }
+                Task { blocked = await store.block(current, using: session.client) }
             }
         } message: {
             Text("之后这个号码打来会被直接拒接，不会消耗 AI 通话时长。")
+        }
+    }
+
+    /// 通话进行中：直接展开显示对方和 AI 正在说的话
+    private var liveTranscriptSection: some View {
+        Section {
+            if let transcript = current.transcript, !transcript.isEmpty {
+                Text(transcript)
+                    .font(.callout.monospaced())
+                    .textSelection(.enabled)
+                    .padding(.vertical, 4)
+            } else {
+                Text("等待对方开口…").foregroundStyle(.secondary)
+            }
+        } header: {
+            HStack(spacing: 6) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.red)
+                    .symbolEffect(.pulse)
+                Text("实时转写")
+            }
+        } footer: {
+            Text("每说完一句更新一次。")
         }
     }
 
@@ -112,15 +149,16 @@ struct CallDetailView: View {
     }
 
     private var tagItems: [TagItem] {
-        var items = [TagItem(text: call.category.label, tint: call.category.tint)]
-        if let risk = call.structured?.scamRisk {
+        var items = [TagItem(text: current.category.label, tint: current.category.tint)]
+        // AI 判断和号码被公开举报的可信度取较高的一个
+        if let risk = current.riskScore(lookup: lookup) {
             let tint: Color = risk >= 70 ? .red : (risk >= 40 ? .orange : .secondary)
-            items.append(TagItem(text: "诈骗风险 \(Int(risk))", tint: tint))
+            items.append(TagItem(text: "诈骗风险 \(risk)", tint: tint))
         }
-        if let urgency = call.urgencyLabel {
-            items.append(TagItem(text: urgency, tint: call.structured?.urgency == "high" ? .orange : .secondary))
+        if let urgency = current.urgencyLabel {
+            items.append(TagItem(text: urgency, tint: current.structured?.urgency == "high" ? .orange : .secondary))
         }
-        if let recommendation = call.recommendation {
+        if let recommendation = current.recommendation {
             items.append(TagItem(text: recommendation, tint: .accentColor))
         }
         return items
@@ -139,6 +177,15 @@ private extension CallDetailView {
         guard lookup == nil, let number = call.dialableNumber, contacts.name(for: number) == nil,
               let client = session.client else { return }
         lookup = try? await client.lookupNumber(number)
+    }
+
+    /// 正在通话或等摘要时，每 2 秒取一次最新内容，直到通话报告到达
+    func followLiveCall() async {
+        while current.isUpdating, !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, let client = session.client else { return }
+            if let fresh = try? await client.call(id: call.id) { refreshed = fresh }
+        }
     }
 }
 

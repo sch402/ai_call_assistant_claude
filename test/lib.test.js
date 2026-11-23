@@ -26,6 +26,9 @@ test('dial TwiML carries the call ref as an X- SIP header and is escaped', () =>
   assert.doesNotMatch(xml, /empty/);
   const two = dialVapi({ sipUri: 'sip:bot@sip.vapi.ai', headers: { 'X-a': '1', 'X-b': '2' } });
   assert.match(two, /X-a=1&amp;X-b=2/);
+  // 通话结束回调：Twilio 请求 action 网址，后端把还在「通话中」的记录标成已结束
+  const withAction = dialVapi({ sipUri: 'sip:bot@sip.vapi.ai', action: 'https://x.test/api/twilio-voice?dial=done' });
+  assert.match(withAction, /<Dial answerOnBridge="true" timeLimit="300" action="https:\/\/x\.test\/api\/twilio-voice\?dial=done" method="POST">/);
 });
 
 test('other TwiML helpers', () => {
@@ -522,4 +525,18 @@ test('push device tokens are validated and dead ones recognised', () => {
   assert.ok(missingTable({ code: 'PGRST205', message: "Could not find the table 'public.push_tokens' in the schema cache" }));
   assert.ok(missingTable({ code: '42P01', message: 'relation "push_tokens" does not exist' }));
   assert.ok(!missingTable({ code: '23503', message: 'violates foreign key constraint' }));
+});
+
+import { liveTranscript } from '../api/vapi-webhook.js';
+
+test('live transcript from Vapi conversation-update messages', () => {
+  const text = liveTranscript([
+    { role: 'system', message: 'prompt' },
+    { role: 'bot', message: 'Hello?' },
+    { role: 'user', message: ' Hi, this is Tina. ' },
+    { role: 'tool_calls', message: '' },
+    { role: 'assistant', content: "Hi Tina, this is Charlie's AI assistant." },
+  ]);
+  assert.equal(text, "AI: Hello?\nUser: Hi, this is Tina.\nAI: Hi Tina, this is Charlie's AI assistant.");
+  assert.equal(liveTranscript(null), '');
 });

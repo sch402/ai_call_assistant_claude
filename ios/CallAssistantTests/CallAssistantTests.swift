@@ -161,6 +161,38 @@ final class SubscriptionTests: XCTestCase {
         XCTAssertEqual(call.headline, "订阅已过期，这通电话没有接听")
         XCTAssertFalse(call.needsAttention)
     }
+
+    private func call(_ fields: String) throws -> CallRecord {
+        let json = #"{"id":"x","created_at":"2026-11-20T10:00:00Z","from_number":"+61292024970","# + fields + "}"
+        return try JSONDecoder.api.decode(CallRecord.self, from: Data(json.utf8))
+    }
+
+    func testCallPhases() throws {
+        let start = APIDate.parse("2026-11-20T10:00:00Z")!
+        // 刚开始：正在通话；10 分钟后还没结束的旧记录按对方挂断处理
+        let live = try call(#""status":"answering""#)
+        XCTAssertEqual(live.phase(now: start.addingTimeInterval(30)), .live)
+        XCTAssertEqual(live.phase(now: start.addingTimeInterval(3600)), .hungUpSilently)
+        // Twilio 报告已挂断：两分钟内等摘要，之后没有报告就算对方自动挂断
+        let ended = try call(#""status":"ended","duration_seconds":4"#)
+        XCTAssertEqual(ended.phase(now: start.addingTimeInterval(20)), .summarizing)
+        XCTAssertEqual(ended.phase(now: start.addingTimeInterval(600)), .hungUpSilently)
+        // 有报告但对方一句没说
+        let silent = try call(#""status":"completed","ended_reason":"customer-ended-call","transcript":"AI: Hello?""#)
+        XCTAssertEqual(silent.phase(now: start), .hungUpSilently)
+        XCTAssertEqual(silent.headline, "对方自动挂断")
+        let spoke = try call(#""status":"completed","transcript":"AI: Hello?\nUser: Hi, it's Tina.","structured":{"summary_zh":"Tina 来电。"}"#)
+        XCTAssertEqual(spoke.phase(now: start), .done)
+        XCTAssertEqual(spoke.headline, "Tina 来电。")
+    }
+
+    func testRiskIncludesPublicSpamReports() throws {
+        let reported = try call(#""status":"completed","structured":{"scam_risk":0},"spam_report":{"confidence":70}"#)
+        XCTAssertEqual(reported.riskScore(), 70)
+        let plain = try call(#""status":"completed","structured":{"scam_risk":12}"#)
+        XCTAssertEqual(plain.riskScore(), 12)
+        XCTAssertNil(try call(#""status":"completed""#).riskScore())
+    }
 }
 
 final class AssistantProfileTests: XCTestCase {

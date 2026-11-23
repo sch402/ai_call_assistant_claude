@@ -8,7 +8,10 @@ import { bodyOf, sendXml } from '../lib/http.js';
 import { forwardedBelongsTo, samePhone, toE164 } from '../lib/phone.js';
 import { isForwardedTestCall, TEST_WINDOW_SECONDS } from '../lib/forwarding.js';
 import { decideCall, entitlementOf } from '../lib/entitlement.js';
-import { dialVapi, reject, sayAndHangup } from '../lib/twiml.js';
+import { dialVapi, hangup, reject, sayAndHangup } from '../lib/twiml.js';
+
+// <Dial action> 的回调地址：通话结束（任何一方挂断）时 Twilio 请求这里
+const DIAL_DONE_PATH = '/api/twilio-voice?dial=done';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,11 +21,19 @@ export default async function handler(req, res) {
 
   const params = bodyOf(req);
   const signature = req.headers['x-twilio-signature'] || '';
-  const url = `${baseUrl()}/api/twilio-voice`;
+  const dialDone = req.query?.dial === 'done';
+  // 签名按 Twilio 实际请求的完整网址（含查询参数）计算
+  const url = `${baseUrl()}${dialDone ? DIAL_DONE_PATH : '/api/twilio-voice'}`;
   if (!twilio.validateRequest(env('TWILIO_AUTH_TOKEN'), signature, url, params)) {
     // 签名不对：可能是伪造请求，或 PUBLIC_BASE_URL 与 Twilio 里配置的网址不一致。
     console.warn('Twilio 签名校验失败', { url });
     res.status(403).send('Invalid signature');
+    return;
+  }
+
+  if (dialDone) {
+    await markDialEnded(params);
+    sendXml(res, hangup());
     return;
   }
 
@@ -136,6 +147,26 @@ export default async function handler(req, res) {
       // /api/vapi-webhook 收到 assistant-request 时靠 X-user_id 找到这位用户的称呼和声音设置
       headers: { 'X-call_ref': callSid, 'X-user_id': userId },
       timeLimitSeconds: Number(env('MAX_CALL_SECONDS', '300')),
+      action: `${baseUrl()}${DIAL_DONE_PATH}`,
     })
+  );
+}
+
+// 通话结束：还没收到 Vapi 通话报告的记录先标成 ended，App 就不会一直显示「正在通话」。
+// 报告随后到达时会改成 completed（/api/vapi-webhook），所以这里只改仍是 answering 的记录。
+async function markDialEnded(params) {
+  if (!params.CallSid) return;
+  const duration = Number(params.DialCallDuration);
+  logDbError(
+    'calls.update dial ended',
+    await db()
+      .from('calls')
+      .update({
+        status: 'ended',
+        ended_reason: `dial-${params.DialCallStatus || 'unknown'}`,
+        duration_seconds: Number.isFinite(duration) ? duration : null,
+      })
+      .eq('call_sid', params.CallSid)
+      .eq('status', 'answering')
   );
 }

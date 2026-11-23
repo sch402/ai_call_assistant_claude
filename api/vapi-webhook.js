@@ -54,6 +54,32 @@ async function assistantFor(message) {
   return assistantForProfile(null);
 }
 
+// 通话进行中：每说完一轮，Vapi 发来目前为止的对话，写进 transcript，App 打开详情页时就能看到实时转写。
+// 只更新仍在通话中的记录；通话结束后由 end-of-call-report 写入最终转写。
+async function saveLiveTranscript(message) {
+  const sids = findCallSids(message);
+  const transcript = liveTranscript(message.messages || message.conversation);
+  if (!sids.length || !transcript) return;
+  logDbError(
+    'calls.update live transcript',
+    await db().from('calls').update({ transcript }).in('call_sid', sids).eq('status', 'answering')
+  );
+}
+
+export function liveTranscript(messages) {
+  if (!Array.isArray(messages)) return '';
+  return messages
+    .map((m) => {
+      const text = String(m?.message ?? m?.content ?? '').trim();
+      if (!text) return null;
+      if (m.role === 'user') return `User: ${text}`;
+      if (m.role === 'bot' || m.role === 'assistant') return `AI: ${text}`;
+      return null; // system、工具调用等不显示
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).send('Method Not Allowed');
@@ -67,6 +93,11 @@ export default async function handler(req, res) {
   const message = bodyOf(req).message || {};
   if (message.type === 'assistant-request') {
     sendJson(res, 200, { assistant: await assistantFor(message) });
+    return;
+  }
+  if (message.type === 'conversation-update') {
+    await saveLiveTranscript(message);
+    sendJson(res, 200, { ok: true });
     return;
   }
   if (message.type !== 'end-of-call-report') {

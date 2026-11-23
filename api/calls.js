@@ -37,17 +37,15 @@ export default async function handler(req, res) {
     return;
   }
   if (auth.user) {
-    const mine = await db()
-      .from('calls')
-      .select(FIELDS)
-      .eq('user_id', auth.user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    // ?id=：只取一通（详情页通话进行中时每隔几秒刷新实时转写）
+    let query = db().from('calls').select(FIELDS).eq('user_id', auth.user.id);
+    query = req.query?.id ? query.eq('id', String(req.query.id)).limit(1) : query.order('created_at', { ascending: false }).limit(50);
+    const mine = await query;
     if (mine.error) {
       sendJson(res, 500, { error: mine.error.message || 'database error' });
       return;
     }
-    sendJson(res, 200, { calls: mine.data });
+    sendJson(res, 200, { calls: await withSpamReports(mine.data || []) });
     return;
   }
 
@@ -70,6 +68,21 @@ export default async function handler(req, res) {
   }
   const forwardTests = summarizeTests(tests.data || [], { ourNumber: env('TWILIO_PHONE_NUMBER') });
   sendJson(res, 200, { calls: calls.data, forwardTests, blocklist: blocked.data });
+}
+
+// 号码在公开网页上被举报为骚扰 / 推销电话时（陌生号码分析的缓存结果），给来电带上 spam_report，
+// App 据此提高「诈骗风险」。只读已有缓存，不触发新的搜索。
+async function withSpamReports(calls) {
+  const numbers = [...new Set(calls.map((c) => c.from_number).filter((n) => /^\+\d{8,15}$/.test(n || '')))];
+  if (!numbers.length) return calls;
+  const cached = await db().from('number_lookups').select('number,result').in('number', numbers);
+  if (logDbError('number_lookups.select for calls', cached)) return calls;
+  const reports = new Map(
+    (cached.data || [])
+      .filter((row) => row.result?.kind === 'spam_report' && Number(row.result.confidence) > 0)
+      .map((row) => [row.number, { confidence: Number(row.result.confidence) }])
+  );
+  return calls.map((c) => (reports.has(c.from_number) ? { ...c, spam_report: reports.get(c.from_number) } : c));
 }
 
 // 陌生号码分析。任何失败都返回 null：详情页什么都不显示，和没找到一样。

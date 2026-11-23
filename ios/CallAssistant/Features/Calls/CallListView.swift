@@ -36,6 +36,14 @@ struct CallListView: View {
             .onChange(of: push.callsChanged) { _, _ in
                 Task { await store.load(using: session.client) }
             }
+            // 有正在通话或等摘要的来电时，每 4 秒刷新，状态和摘要自动更新
+            .task(id: store.hasUpdatingCalls) {
+                while store.hasUpdatingCalls, !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(4))
+                    guard !Task.isCancelled else { return }
+                    await store.load(using: session.client)
+                }
+            }
         }
     }
 
@@ -156,6 +164,11 @@ struct CallRowView: View {
     let call: CallRecord
     @Environment(ContactNames.self) private var contacts
 
+    /// 号码被公开举报为骚扰电话（通讯录里的号码不提示；AI 已判定为骚扰的不重复提示）
+    private var reported: Bool {
+        call.spamReport != nil && !call.category.isNuisance && contacts.name(for: call.fromNumber) == nil
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             CategoryBadge(category: call.category, size: 40)
@@ -173,9 +186,11 @@ struct CallRowView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
-                if call.needsAttention || call.category == .scam {
+                if call.isInProgress || reported || call.needsAttention || call.category == .scam {
                     HStack(spacing: 6) {
+                        if call.isInProgress { Tag(text: "正在通话", tint: .red) }
                         if call.category == .scam { Tag(text: "疑似诈骗", tint: .red) }
+                        if reported { Tag(text: "被举报为骚扰电话", tint: .orange) }
                         if let recommendation = call.recommendation, call.needsAttention {
                             Tag(text: recommendation, tint: .accentColor)
                         }
