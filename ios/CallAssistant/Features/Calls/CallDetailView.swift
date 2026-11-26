@@ -58,6 +58,9 @@ struct CallDetailView: View {
                 InfoRow(label: "时间要求", value: current.structured?.deadline)
                 InfoRow(label: "判定理由", value: current.structured?.scamReasons?.joined(separator: "；"))
                 InfoRow(label: "通话时长", value: current.durationSeconds.map { "\(Int($0.rounded())) 秒" })
+                if !current.isInProgress {
+                    InfoRow(label: "结束方式", value: current.endedReasonLabel)
+                }
                 if current.attributed == false {
                     InfoRow(label: "转移来源", value: "运营商未提供，无法确认是转给你的来电")
                 }

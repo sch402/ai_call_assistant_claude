@@ -170,6 +170,23 @@ extension CallRecord {
     /// 挂断后等通话报告的时间，超过就不再显示「正在生成摘要」
     private static let reportWaitSeconds: TimeInterval = 2 * 60
 
+    /// 通话怎么结束的（Vapi 的 endedReason，或 Twilio 通话结束回调的 dial-*），方便判断是谁挂断
+    var endedReasonLabel: String? {
+        guard let reason = endedReason, !reason.isEmpty else { return nil }
+        switch reason {
+        case "customer-ended-call": return String(localized: "对方挂断")
+        case "assistant-ended-call", "assistant-said-end-call-phrase": return String(localized: "AI 结束通话")
+        case "silence-timed-out": return String(localized: "长时间没有声音，自动结束")
+        case "exceeded-max-duration": return String(localized: "达到最长通话时间")
+        case "dial-completed": return String(localized: "通话已结束（未收到通话报告）")
+        case "dial-no-answer", "dial-busy", "dial-failed": return String(localized: "AI 没能接通")
+        case "dial-canceled": return String(localized: "对方在接通前挂断")
+        default:
+            if reason.contains("error") || reason.contains("failed") { return String(localized: "系统故障（\(reason)）") }
+            return reason
+        }
+    }
+
     /// 对方说过话（转写里有 User 的发言）
     var callerSpoke: Bool {
         transcript?.split(separator: "\n").contains { $0.hasPrefix("User:") } ?? false
